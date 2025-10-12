@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+  --surface: #ffffff;
+  --surface-variant: #f5f5f5;
+  --on-surface: #1a1a1a;
+  --on-surface-variant: #666666;
+  --primary: #6366f1;
+  --primary-container: #e0e9ff;
+  --on-primary: #ffffff;
+  --on-primary-container: #1e1b4b;
+  --secondary: #10b981;
+  --secondary-container: #d1fae5;
+  --outline: #e5e5e5;
+  --outline-variant: #d4d4d4;
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #e5e5e5;
+  --surface: #1e1e1e;
+  --surface-variant: #2a2a2a;
+  --on-surface: #e5e5e5;
+  --on-surface-variant: #a3a3a3;
+  --primary: #8098f9;
+  --primary-container: #312e81;
+  --on-primary: #1e1b4b;
+  --on-primary-container: #e0e9ff;
+  --secondary: #34d399;
+  --secondary-container: #065f46;
+  --outline: #404040;
+  --outline-variant: #525252;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+
+* {
+  @apply border-gray-200 dark:border-gray-700;
+}
+
+body {
+  @apply text-foreground bg-background antialiased;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Material Design 3 Glass-morphism */
+@layer components {
+  .glass-surface {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30;
+  }
+
+  .glass-surface-light {
+    @apply bg-white/60 backdrop-blur-lg border border-white/30;
+  }
+
+  /* Elevated Surfaces */
+  .surface-elevated {
+    @apply bg-white dark:bg-gray-900 shadow-soft;
+  }
+
+  .surface-elevated-medium {
+    @apply bg-white dark:bg-gray-900 shadow-medium;
+  }
+
+  .surface-elevated-high {
+    @apply bg-white dark:bg-gray-900 shadow-large;
+  }
+
+  /* Interactive States */
+  .interactive-hover {
+    @apply transition-all duration-200 hover:shadow-medium hover:-translate-y-0.5;
+  }
+
+  .interactive-press {
+    @apply active:scale-95 transition-transform duration-150;
+  }
+
+  /* Button Variants */
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium px-4 py-2.5 rounded-xl
+           shadow-soft hover:shadow-medium transition-all duration-200
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600;
+  }
+
+  .btn-secondary {
+    @apply bg-surface-dark dark:bg-surface-variant hover:bg-surface-darker dark:hover:bg-gray-700
+           text-gray-700 dark:text-gray-200 font-medium px-4 py-2.5 rounded-xl
+           shadow-soft hover:shadow-medium transition-all duration-200
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200
+           font-medium px-4 py-2.5 rounded-xl transition-all duration-200
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-icon {
+    @apply w-10 h-10 flex items-center justify-center rounded-xl
+           hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Input Styles */
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+           rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-white dark:bg-gray-900 rounded-2xl shadow-soft border border-gray-200 dark:border-gray-700
+           transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-medium hover:-translate-y-1 cursor-pointer;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    @apply absolute z-50 px-3 py-1.5 text-xs font-medium text-white bg-gray-900
+           dark:bg-gray-700 rounded-lg shadow-lg opacity-0 transition-opacity duration-200;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Scrollbar Styles */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #d4d4d4 transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #d4d4d4;
+    border-radius: 20px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #a3a3a3;
+  }
+
+  /* Focus Visible */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+  }
+}
