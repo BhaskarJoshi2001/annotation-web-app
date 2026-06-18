@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  body { height: 100vh; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; }
+  .sidebar { background: var(--surface); border-right: 1px solid var(--outline); display: flex; flex-direction: column; padding: var(--space-4) var(--space-3); overflow-y: auto; }
+  .brand { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2) var(--space-5); }
+  .brand-mark { width: 32px; height: 32px; flex: none; }
+  .brand-name b { font-weight: 600; letter-spacing: -0.01em; display: block; font-size: var(--text-label-size); white-space: nowrap; }
+  .brand-name span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+  .nav { display: flex; flex-direction: column; gap: 1px; }
+  .nav a { display: flex; align-items: center; gap: 11px; padding: 8px var(--space-3); border-radius: var(--radius-md); color: var(--muted-foreground); text-decoration: none; font-size: var(--text-label-size); font-weight: 500; transition: all var(--duration-fast) var(--ease-standard); }
+  .nav a svg { width: 18px; height: 18px; flex: none; }
+  .nav a:hover { background: var(--surface-variant); color: var(--foreground); }
+  .nav a.active { background: var(--primary-subtle); color: var(--primary); }
+  .nav-group { margin: var(--space-5) var(--space-3) var(--space-2); font-size: 11px; font-weight: 600; color: var(--subtle-foreground); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sidebar-foot { margin-top: auto; padding-top: var(--space-4); }
+  .userbox { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); cursor: pointer; }
+  .userbox:hover { background: var(--surface-variant); }
+  .userbox .meta { flex: 1; min-width: 0; }
+  .userbox .meta b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+  .userbox .meta span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  .main { overflow-y: auto; }
+  .topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-8); background: color-mix(in srgb, var(--background) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--outline-subtle); }
+  .topbar h1 { font-size: var(--text-title-lg-size); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .layout { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-10); padding: var(--space-8); max-width: 1040px; }
+
+  .settabs { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 90px; align-self: start; }
+  .settab { display: flex; align-items: center; gap: 10px; padding: 9px var(--space-3); border-radius: var(--radius-md); border: 0; background: transparent; cursor: pointer; font: inherit; font-size: var(--text-label-size); font-weight: 500; color: var(--muted-foreground); text-align: left; transition: all var(--duration-fast) var(--ease-standard); }
+  .settab svg { width: 17px; height: 17px; }
+  .settab:hover { background: var(--surface-variant); color: var(--foreground); }
+  .settab.active { background: var(--primary-subtle); color: var(--primary); font-weight: 600; }
+
+  .panel { display: none; flex-direction: column; gap: var(--space-6); }
+  .panel.active { display: flex; }
+  .sec { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); box-shadow: var(--elevation-1); overflow: hidden; }
+  .sec-h { padding: var(--space-5) var(--space-6) var(--space-4); border-bottom: 1px solid var(--outline-subtle); }
+  .sec-h h3 { margin: 0 0 3px; font-size: var(--text-title-size); font-weight: 600; }
+  .sec-h p { margin: 0; color: var(--muted-foreground); font-size: var(--text-body-size); }
+  .sec-b { padding: var(--space-6); }
+  .sec-f { padding: var(--space-4) var(--space-6); background: var(--surface-variant); border-top: 1px solid var(--outline-subtle); display: flex; justify-content: flex-end; gap: 10px; }
+
+  .frow { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-6); padding: var(--space-4) 0; border-bottom: 1px solid var(--outline-subtle); align-items: start; }
+  .frow:last-child { border-bottom: 0; padding-bottom: 0; }
+  .frow:first-child { padding-top: 0; }
+  .frow .lbl b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+  .frow .lbl span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  .avatar-edit { display: flex; align-items: center; gap: var(--space-4); }
+  .avatar-edit .big { width: 72px; height: 72px; border-radius: var(--radius-full); background: linear-gradient(135deg,var(--blue-500),var(--violet-500)); display: grid; place-items: center; color: #fff; font-size: 26px; font-weight: 600; }
+
+  /* appearance theme cards */
+  .theme-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+  .theme-card { border: 1.5px solid var(--outline); border-radius: var(--radius-lg); padding: var(--space-3); cursor: pointer; transition: all var(--duration-fast) var(--ease-standard); background: var(--surface); }
+  .theme-card:hover { border-color: var(--outline-strong); }
+  .theme-card.sel { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); }
+  .theme-card .preview { height: 76px; border-radius: var(--radius-md); overflow: hidden; position: relative; border: 1px solid var(--outline); margin-bottom: 10px; }
+  .theme-card .row { display: flex; align-items: center; justify-content: space-between; }
+  .theme-card .row .nm { font-size: var(--text-label-size); font-weight: 600; }
+  .theme-card .check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--outline-strong); display: grid; place-items: center; }
+  .theme-card.sel .check { background: var(--primary); border-color: var(--primary); }
+  .theme-card .check svg { width: 11px; height: 11px; color: #fff; opacity: 0; }
+  .theme-card.sel .check svg { opacity: 1; }
+  .pv-light { background: #f7f9fc; } .pv-light .bar { background: #fff; border-bottom: 1px solid #e2e8f2; } .pv-light .side { background: #eef2f8; } .pv-light .dot { background: #2563eb; }
+  .pv-dark { background: #0a1120; } .pv-dark .bar { background: #0f172a; border-bottom: 1px solid #25324a; } .pv-dark .side { background: #131c30; } .pv-dark .dot { background: #5b8def; }
+  .pv-auto { background: linear-gradient(120deg, #f7f9fc 0 50%, #0a1120 50% 100%); }
+  .preview .bar { position: absolute; top: 0; left: 0; right: 0; height: 16px; }
+  .preview .side { position: absolute; top: 16px; left: 0; bottom: 0; width: 26px; }
+  .preview .dot { position: absolute; top: 26px; left: 36px; width: 40px; height: 7px; border-radius: 4px; }
+  .preview .dot2 { position: absolute; top: 38px; left: 36px; width: 60px; height: 7px; border-radius: 4px; background: var(--outline-strong); opacity: .6; }
+
+  .accent-row { display: flex; gap: 12px; }
+  .accent { width: 34px; height: 34px; border-radius: var(--radius-full); cursor: pointer; border: 2px solid transparent; transition: transform var(--duration-fast) var(--ease-spring); display: grid; place-items: center; }
+  .accent:hover { transform: scale(1.1); }
+  .accent.sel { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor; }
+  .accent svg { width: 15px; height: 15px; color: #fff; opacity: 0; }
+  .accent.sel svg { opacity: 1; }
+
+  .team-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--outline-subtle); }
+  .team-row:last-child { border-bottom: 0; }
+  .team-row .meta { flex: 1; }
+  .team-row .meta b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+  .team-row .meta span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  .danger-zone { border-color: color-mix(in srgb, var(--destructive) 35%, var(--outline)); }
+  .danger-zone .sec-h { border-bottom-color: color-mix(in srgb, var(--destructive) 20%, var(--outline)); }
+
+  @media (max-width: 880px) { .app { grid-template-columns: 1fr; } .sidebar { display: none; } .layout { grid-template-columns: 1fr; gap: var(--space-5); padding: var(--space-5); } .settabs { flex-direction: row; overflow-x: auto; position: static; } .frow { grid-template-columns: 1fr; gap: var(--space-2); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+        <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="var(--on-primary)" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+        <rect x="6" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+        <rect x="6" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+      </svg>
+      <div class="brand-name"><b>Annotation Studio</b><span>Acme Vision</span></div>
+    </div>
+    <nav class="nav">
+      <a href="Dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Projects</a>
+      <a href="Dataset.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Datasets</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/></svg>Models<span class="badge badge-secondary" style="margin-left:auto">beta</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Exports</a>
+      <div class="nav-group">Workspace</div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/></svg>Team</a>
+      <a href="#" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 14H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 10 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 20.4 10H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="userbox">
+        <span class="avatar md" style="background:var(--blue-500);color:#fff">AM</span>
+        <div class="meta"><b>Ana Marquez</b><span>ana@acmevision.ai</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar"><h1>Settings</h1></header>
+    <div class="layout">
+      <nav class="settabs" id="settabs">
+        <button class="settab active" data-p="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>Profile</button>
+        <button class="settab" data-p="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Account</button>
+        <button class="settab" data-p="appearance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M5 12H3M21 12h-2" stroke-linecap="round"/></svg>Appearance</button>
+        <button class="settab" data-p="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/></svg>Team</button>
+        <button class="settab" data-p="notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>Notifications</button>
+      </nav>
+
+      <div class="panels">
+        <!-- PROFILE -->
+        <div class="panel active" data-p="profile">
+          <div class="sec">
+            <div class="sec-h"><h3>Profile</h3><p>This information is visible to your team across the workspace.</p></div>
+            <div class="sec-b">
+              <div class="frow">
+                <div class="lbl"><b>Photo</b><span>PNG or JPG, up to 2 MB.</span></div>
+                <div class="avatar-edit"><div class="big">AM</div><div class="row" style="display:flex;gap:8px"><button class="btn btn-outline btn-sm">Upload new</button><button class="btn btn-ghost btn-sm">Remove</button></div></div>
+              </div>
+              <div class="frow">
+                <div class="lbl"><b>Full name</b></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:440px"><input class="input" value="Ana"><input class="input" value="Marquez"></div>
+              </div>
+              <div class="frow">
+                <div class="lbl"><b>Role / title</b></div>
+                <input class="input" value="ML Engineering Lead" style="max-width:440px">
+              </div>
+              <div class="frow">
+                <div class="lbl"><b>Bio</b><span>A short description for your profile.</span></div>
+                <textarea class="textarea" style="max-width:440px">Building perception systems for autonomous logistics. Coffee, computer vision, and clean datasets.</textarea>
+              </div>
+            </div>
+            <div class="sec-f"><button class="btn btn-ghost">Cancel</button><button class="btn btn-primary" data-save>Save changes</button></div>
+          </div>
+        </div>
+
+        <!-- ACCOUNT -->
+        <div class="panel" data-p="account">
+          <div class="sec">
+            <div class="sec-h"><h3>Account</h3><p>Manage your email, password, and security.</p></div>
+            <div class="sec-b">
+              <div class="frow"><div class="lbl"><b>Email address</b><span>Used for sign-in and notifications.</span></div>
+                <div class="input-group" style="max-width:440px"><svg class="lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6" stroke-linecap="round"/></svg><input class="input" value="ana@acmevision.ai"><span class="badge badge-success trail" style="margin-right:6px">Verified</span></div>
+              </div>
+              <div class="frow"><div class="lbl"><b>Password</b><span>Last changed 3 months ago.</span></div>
+                <button class="btn btn-outline" style="width:fit-content">Change password</button>
+              </div>
+              <div class="frow"><div class="lbl"><b>Two-factor auth</b><span>Add an extra layer of security.</span></div>
+                <label class="switch"><input type="checkbox" checked><span class="track"><span class="thumb"></span></span></label>
+              </div>
+              <div class="frow"><div class="lbl"><b>Active sessions</b><span>You're signed in on 2 devices.</span></div>
+                <button class="btn btn-ghost" style="width:fit-content;color:var(--destructive)">Sign out all other sessions</button>
+              </div>
+            </div>
+          </div>
+          <div class="sec danger-zone">
+            <div class="sec-h"><h3 style="color:var(--destructive)">Danger zone</h3><p>Irreversible and destructive actions.</p></div>
+            <div class="sec-b"><div class="row" style="display:flex;align-items:center;justify-content:space-between"><div><b style="font-size:var(--text-label-size)">Delete account</b><div class="t-caption">Permanently remove your account and all data.</div></div><button class="btn btn-destructive">Delete account</button></div></div>
+          </div>
+        </div>
+
+        <!-- APPEARANCE -->
+        <div class="panel" data-p="appearance">
+          <div class="sec">
+            <div class="sec-h"><h3>Theme</h3><p>Choose how Annotation Studio looks. Syncs across your devices.</p></div>
+            <div class="sec-b">
+              <div class="theme-cards" id="themeCards">
+                <div class="theme-card" data-theme-card="light"><div class="preview pv-light"><div class="bar"></div><div class="side"></div><div class="dot"></div><div class="dot2"></div></div><div class="row"><span class="nm">Light</span><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></div>
+                <div class="theme-card" data-theme-card="dark"><div class="preview pv-dark"><div class="bar"></div><div class="side"></div><div class="dot"></div><div class="dot2"></div></div><div class="row"><span class="nm">Dark</span><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></div>
+                <div class="theme-card" data-theme-card="system"><div class="preview pv-auto"><div class="bar" style="background:transparent;border:0"></div></div><div class="row"><span class="nm">System</span><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="sec">
+            <div class="sec-h"><h3>Accent color</h3><p>Used for primary actions, focus, and selection.</p></div>
+            <div class="sec-b">
+              <div class="accent-row" id="accentRow">
+                <span class="accent sel" data-accent="#2563eb" style="background:#2563eb;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="accent" data-accent="#7c3aed" style="background:#7c3aed;color:#7c3aed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="accent" data-accent="#0d9488" style="background:#0d9488;color:#0d9488"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="accent" data-accent="#e11d48" style="background:#e11d48;color:#e11d48"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span class="accent" data-accent="#ea580c" style="background:#ea580c;color:#ea580c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+              <p class="t-caption" style="margin-top:14px">A live preview of accent changes — the rest of these mockups keep the default blue.</p>
+            </div>
+          </div>
+          <div class="sec">
+            <div class="sec-h"><h3>Workspace density</h3><p>Adjust spacing for the annotation interface.</p></div>
+            <div class="sec-b" style="display:flex;flex-direction:column;gap:18px">
+              <label class="switch" style="display:flex;align-items:center;justify-content:space-between"><span><b style="font-size:var(--text-label-size)">Compact mode</b><div class="t-caption">Tighter padding in lists and panels.</div></span><span style="position:relative;display:inline-flex"><input type="checkbox"><span class="track"><span class="thumb"></span></span></span></label>
+              <label class="switch" style="display:flex;align-items:center;justify-content:space-between"><span><b style="font-size:var(--text-label-size)">Reduce motion</b><div class="t-caption">Minimize animations and transitions.</div></span><span style="position:relative;display:inline-flex"><input type="checkbox"><span class="track"><span class="thumb"></span></span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- TEAM -->
+        <div class="panel" data-p="team">
+          <div class="sec">
+            <div class="sec-h" style="display:flex;align-items:center;justify-content:space-between"><div><h3>Team members</h3><p>7 members · 2 seats remaining on your plan.</p></div><button class="btn btn-primary btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Invite</button></div>
+            <div class="sec-b" style="padding-top:8px" id="teamList"></div>
+          </div>
+        </div>
+
+        <!-- NOTIFICATIONS -->
+        <div class="panel" data-p="notifications">
+          <div class="sec">
+            <div class="sec-h"><h3>Notifications</h3><p>Choose what you'd like to hear about.</p></div>
+            <div class="sec-b" id="notifList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toastHost" style="position:fixed;bottom:var(--space-6);right:var(--space-6);z-index:var(--z-toast);display:flex;flex-direction:column;gap:10px;align-items:flex-end"></div>
+
+<script>
+  const $ = (s,r=document)=>r.querySelector(s); const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+  // panel tabs
+  $$(".settab").forEach(t => t.addEventListener("click", () => {
+    $$(".settab").forEach(x => x.classList.remove("active")); t.classList.add("active");
+    $$(".panel").forEach(p => p.classList.toggle("active", p.dataset.p === t.dataset.p));
+  }));
+
+  // theme cards <-> ASTheme
+  function syncCards() {
+    const mode = window.ASTheme.get();
+    $$("[data-theme-card]").forEach(c => c.classList.toggle("sel", c.dataset.themeCard === mode));
+  }
+  $$("[data-theme-card]").forEach(c => c.addEventListener("click", () => { window.ASTheme.set(c.dataset.themeCard); }));
+  window.addEventListener("themechange", syncCards);
+
+  // accent (live preview by overriding --primary tokens)
+  $$(".accent").forEach(a => a.addEventListener("click", () => {
+    $$(".accent").forEach(x => x.classList.remove("sel")); a.classList.add("sel");
+    const c = a.dataset.accent;
+    document.documentElement.style.setProperty("--primary", c);
+    document.documentElement.style.setProperty("--ring", c);
+    toast("Accent updated", "Primary color set to " + c + ".");
+  }));
+
+  // team
+  const team = [
+    { n:"Ana Marquez", e:"ana@acmevision.ai", role:"Owner", c:"var(--blue-500)", i:"AM", on:true },
+    { n:"Kofi Patel", e:"kofi@acmevision.ai", role:"Admin", c:"var(--violet-500)", i:"KP", on:true },
+    { n:"Jordan Rivera", e:"jordan@acmevision.ai", role:"Labeler", c:"var(--green-500)", i:"JR", on:true },
+    { n:"Mina Noor", e:"mina@acmevision.ai", role:"Reviewer", c:"var(--amber-500)", i:"MN", on:false },
+    { n:"Sasha Lin", e:"sasha@acmevision.ai", role:"Labeler", c:"var(--cyan-500)", i:"SL", on:false },
+  ];
+  $("#teamList").innerHTML = team.map(m => `
+    <div class="team-row">
+      <span class="avatar md" style="background:${m.c};color:#fff;position:relative">${m.i}</span>
+      <div class="meta"><b>${m.n} ${m.on?'<span class="badge badge-success" style="height:16px;font-size:10px;margin-left:4px"><span class="dot"></span>online</span>':''}</b><span>${m.e}</span></div>
+      <div class="select-wrap"><select class="select-native" style="height:32px;width:130px;font-size:var(--text-label-size)"><option ${m.role==='Owner'?'selected':''}>Owner</option><option ${m.role==='Admin'?'selected':''}>Admin</option><option ${m.role==='Reviewer'?'selected':''}>Reviewer</option><option ${m.role==='Labeler'?'selected':''}>Labeler</option></select></div>
+      <button class="icon-btn sm" aria-label="More"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+    </div>`).join("");
+
+  // notifications
+  const notifs = [
+    ["Annotation assigned to me","When a teammate assigns you images.",true],
+    ["Review requested","When your work needs review or a review is requested.",true],
+    ["Export ready","When a dataset export finishes processing.",true],
+    ["Weekly summary","A digest of your team's labeling progress.",false],
+    ["Product updates","New features and improvements.",false],
+  ];
+  $("#notifList").innerHTML = notifs.map((n,i) => `
+    <label class="switch" style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:${i<notifs.length-1?'1px solid var(--outline-subtle)':'0'}">
+      <span><b style="font-size:var(--text-label-size)">${n[0]}</b><div class="t-caption">${n[1]}</div></span>
+      <span style="position:relative;display:inline-flex"><input type="checkbox" ${n[2]?'checked':''}><span class="track"><span class="thumb"></span></span></span>
+    </label>`).join("");
+
+  $$("[data-save]").forEach(b => b.addEventListener("click", () => toast("Saved", "Your changes have been saved.")));
+
+  function toast(title, msg) {
+    const t = document.createElement("div");
+    t.style.cssText = "display:flex;gap:12px;align-items:flex-start;min-width:280px;max-width:360px;background:var(--surface);border:1px solid var(--outline);border-left:3px solid var(--primary);border-radius:var(--radius-lg);box-shadow:var(--elevation-4);padding:12px 14px;transform:translateX(120%);transition:transform var(--duration-slow) var(--ease-spring)";
+    t.innerHTML = `<span style="color:var(--primary);flex:none;width:18px;height:18px;margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div style="flex:1"><div class="t-label" style="margin-bottom:2px">${title}</div><div class="t-caption">${msg}</div></div>`;
+    $("#toastHost").appendChild(t); requestAnimationFrame(()=>t.style.transform="translateX(0)");
+    setTimeout(()=>{ t.style.transform="translateX(120%)"; setTimeout(()=>t.remove(),400); }, 3000);
+  }
+
+  syncCards();
+</script>
+</body>
+</html>

@@ -1,122 +1,102 @@
-# Annotation Tool
+# Annotation Studio
 
-A professional image annotation tool built with Next.js 15, TypeScript (strict mode), and modern React patterns.
+An image-annotation tool for building computer-vision datasets. Draw bounding
+boxes and polygons over an image, manage them with labels and colors, and export
+in the formats ML pipelines actually use — **COCO**, **YOLO**, and JSON.
 
-## Tech Stack
+> Status: in active development. This is Phase 1 (single-image annotation engine).
+> See [Roadmap](#roadmap) for what's next.
 
-- **Next.js 15.0.0** - App Router with Server Components
-- **React 18.3.1** - Stable version compatible with all libraries
-- **TypeScript 5.6** - Strict mode enabled
-- **TanStack Query v5** - Server state management
-- **Zustand v5** - Client state management
-- **Konva.js + react-konva** - Canvas rendering
-- **Tailwind CSS** - Styling
-- **Server Actions** - File operations
+## Features
 
-## Features (Phase 1)
+- **Bounding-box and polygon tools** with live drawing preview
+- **Select, move, resize, and reshape** existing annotations
+- **Per-annotation labels and colors**, editable inline
+- **Zoom and pan** (mouse wheel buttons + hold `Space` to drag)
+- **Undo / redo** with a 50-step history
+- **Keyboard-driven workflow** — `S`/`B`/`P` to switch tools, `Esc` to cancel,
+  `Enter` / double-click to close a polygon, `Delete` to remove
+- **Export to COCO, YOLO, JSON, and a rendered PNG**
+- **Local persistence** so your work survives a page reload
 
-- ✅ Image upload with drag & drop support
-- ✅ Server-side image processing with Server Actions
-- ✅ Canvas rendering with Konva.js
-- ✅ Zoom controls (zoom in, zoom out, reset)
-- ✅ Persistent state with Zustand
-- ✅ Full TypeScript strict mode compliance
-- ✅ Professional project structure
+## Tech stack
 
-## Project Structure
+- **Next.js 15** (App Router) + **React 18** + **TypeScript** (strict mode)
+- **Fabric.js 6** for the interactive canvas
+- **Zustand** for client state (with `persist` middleware)
+- **TanStack Query** for the upload mutation / async state
+- **Tailwind CSS** for styling
+- **Server Actions** for image upload handling
 
-```
-annotation-web-app/
-├── app/
-│   ├── layout.tsx              # Root layout with providers
-│   ├── page.tsx                # Main annotation page
-│   ├── providers.tsx           # TanStack Query provider
-│   └── globals.css             # Global styles
-├── components/
-│   ├── annotation-canvas.tsx   # Konva canvas component
-│   ├── controls.tsx            # Zoom controls
-│   └── image-uploader.tsx      # Upload component
-├── lib/
-│   ├── types.ts                # TypeScript interfaces
-│   ├── store/
-│   │   └── annotation-store.ts # Zustand store
-│   └── actions/
-│       └── image-actions.ts    # Server actions
-└── public/
-    └── uploads/                # Image storage
-```
+## How coordinates work
 
-## Getting Started
+Annotations are stored in the **source image's pixel coordinate space**, not in
+screen/canvas coordinates. The canvas fits the image to the viewport with a
+`{ scale, offsetX, offsetY }` transform, and the app converts between "scene"
+(canvas) space and "image" space at the input and render boundaries.
 
-### Prerequisites
+This is what keeps exports correct: a box drawn while zoomed to 250% still
+exports the right pixel coordinates, and COCO/YOLO normalization against the
+image's true dimensions stays accurate. Storing display coordinates instead
+would silently corrupt exports the moment the zoom level or canvas size changed.
 
-- Node.js 18+
-- npm or yarn
-
-### Installation
-
-Dependencies are already installed. If you need to reinstall:
+## Getting started
 
 ```bash
 npm install
-```
-
-### Development
-
-Run the development server:
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Build
+### Scripts
 
-```bash
-npm run build
-npm start
-```
-
-### Type Check
-
-```bash
-npm run type-check
-```
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm start` | Run the production build |
+| `npm run lint` | ESLint |
+| `npm run type-check` | `tsc --noEmit` (strict) |
 
 ## Usage
 
-1. **Upload an Image**: Drag and drop an image or click to select (JPG, PNG, WEBP up to 10MB)
-2. **View Image**: The image will be displayed on the canvas
-3. **Zoom Controls**: Use the +/- buttons or Reset to control zoom level
+1. **Upload an image** — drag & drop or click (JPG, PNG, WEBP; up to 10 MB).
+2. **Pick a tool** — Select (`S`), Bounding Box (`B`), or Polygon (`P`).
+3. **Draw** — drag for a box; click points and double-click / `Enter` to close a polygon.
+4. **Edit** — select an annotation to move/resize it; double-click its label to rename.
+5. **Export** — choose COCO, YOLO, JSON, or an annotated PNG.
 
-## TypeScript Configuration
+## Export formats
 
-The project uses strict TypeScript configuration:
+- **COCO** — `images`, `annotations` (bbox + polygon `segmentation`), and `categories`.
+- **YOLO** — normalized `class x_center y_center width height` lines plus `classes.txt`.
+- **JSON** — the raw annotation model with image metadata.
+- **PNG** — the canvas rendered at 2× for a quick visual artifact.
 
-- `strict: true`
-- `noUnusedLocals: true`
-- `noUnusedParameters: true`
-- `noFallthroughCasesInSwitch: true`
-- `noImplicitReturns: true`
+## Project structure
 
-## State Management
+```
+app/                 # App Router pages, layout, providers
+components/          # Canvas, tool panel, annotation list, export panel, uploader
+lib/
+  store/            # Zustand store (annotations, tools, history, persistence)
+  actions/          # Server Actions (image upload)
+  hooks/            # use-export
+  utils/            # COCO / YOLO / JSON serialization
+  types.ts          # Shared domain types
+public/uploads/     # Uploaded images (local dev)
+```
 
-### Zustand Store
+## Roadmap
 
-The application uses Zustand for client-side state management with:
+Phase 1 (this repo) is the single-image annotation engine. Planned next:
 
-- DevTools integration
-- Persistence for annotations and image data
-- Strongly typed actions and state
-
-### TanStack Query
-
-Server state is managed with TanStack Query v5 for:
-
-- Caching
-- Optimistic updates
-- Background refetching
+- **Backend & persistence** — Postgres + Prisma, projects/datasets/images, object storage
+- **AI-assisted labeling** — click-to-segment with Segment Anything
+- **Auth & multi-image projects** with a dataset browser
+- **Tests & CI** — unit (export/geometry), component, and E2E coverage with GitHub Actions
+- **Live deployment**
 
 ## License
 

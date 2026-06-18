@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  body { height: 100vh; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--outline); display: flex; flex-direction: column; padding: var(--space-4) var(--space-3); overflow-y: auto; }
+  .brand { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2) var(--space-5); }
+  .brand-mark { width: 32px; height: 32px; flex: none; }
+  .brand-name b { font-weight: 600; letter-spacing: -0.01em; display: block; font-size: var(--text-label-size); white-space: nowrap; }
+  .brand-name span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+  .nav { display: flex; flex-direction: column; gap: 1px; }
+  .nav a { display: flex; align-items: center; gap: 11px; padding: 8px var(--space-3); border-radius: var(--radius-md); color: var(--muted-foreground); text-decoration: none; font-size: var(--text-label-size); font-weight: 500; transition: all var(--duration-fast) var(--ease-standard); }
+  .nav a svg { width: 18px; height: 18px; flex: none; }
+  .nav a:hover { background: var(--surface-variant); color: var(--foreground); }
+  .nav a.active { background: var(--primary-subtle); color: var(--primary); }
+  .nav a .badge { margin-left: auto; }
+  .nav-group { margin: var(--space-5) var(--space-3) var(--space-2); font-size: 11px; font-weight: 600; color: var(--subtle-foreground); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sidebar-foot { margin-top: auto; padding-top: var(--space-4); }
+  .usage { background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-3); }
+  .usage .row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .userbox { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); cursor: pointer; }
+  .userbox:hover { background: var(--surface-variant); }
+  .userbox .meta { flex: 1; min-width: 0; }
+  .userbox .meta b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+  .userbox .meta span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  /* MAIN */
+  .main { overflow-y: auto; }
+  .topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-8); background: color-mix(in srgb, var(--background) 85%, transparent); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--outline-subtle); }
+  .topbar h1 { font-size: var(--text-title-lg-size); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .topbar .grow { flex: 1; }
+  .searchbar { position: relative; width: 280px; }
+  .searchbar svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--subtle-foreground); }
+  .searchbar input { width: 100%; height: 38px; padding: 0 12px 0 36px; background: var(--surface); border: 1px solid var(--input-border); border-radius: var(--radius-md); font: inherit; font-size: var(--text-body-size); color: var(--foreground); }
+  .searchbar input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
+  .searchbar kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+
+  .content { padding: var(--space-8); max-width: 1340px; }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin-bottom: var(--space-8); }
+  .stat { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); padding: var(--space-5); box-shadow: var(--elevation-1); position: relative; overflow: hidden; }
+  .stat .ico { width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; margin-bottom: var(--space-4); }
+  .stat .ico svg { width: 19px; height: 19px; }
+  .stat .lab { font-size: var(--text-caption-size); color: var(--muted-foreground); font-weight: 500; }
+  .stat .val { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; margin-top: 2px; }
+  .stat .delta { font-size: var(--text-caption-size); font-weight: 600; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .stat .val { white-space: nowrap; }
+  .stat .delta.up { color: var(--success); } .stat .delta.flat { color: var(--muted-foreground); }
+  .stat .spark { position: absolute; right: 0; bottom: 0; width: 90px; height: 40px; opacity: 0.5; }
+
+  /* TOOLBAR */
+  .listbar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .listbar h2 { font-size: var(--text-title-size); font-weight: 600; margin: 0; }
+  .listbar .grow { flex: 1; }
+  .seg { display: inline-flex; background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+  .seg button { appearance: none; border: 0; background: transparent; cursor: pointer; width: 32px; height: 28px; border-radius: var(--radius-sm); color: var(--muted-foreground); display: grid; place-items: center; transition: all var(--duration-fast) var(--ease-standard); }
+  .seg button svg { width: 16px; height: 16px; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--foreground); box-shadow: var(--elevation-1); }
+
+  /* PROJECT GRID */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-5); }
+  .proj { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--elevation-1); cursor: pointer; transition: transform var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard); display: flex; flex-direction: column; }
+  .proj:hover { transform: translateY(-3px); box-shadow: var(--elevation-3); border-color: var(--outline-strong); }
+  .proj .cover { height: 132px; position: relative; overflow: hidden; }
+  .proj .cover .scene { position: absolute; inset: 0; }
+  .proj .cover .ov { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,.35)); }
+  .proj .cover .tags { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; }
+  .proj .cover .menu-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.3); color: #fff; backdrop-filter: blur(4px); }
+  .proj .cover .menu-btn:hover { background: rgba(0,0,0,.5); }
+  .proj .body { padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; display: flex; flex-direction: column; }
+  .proj .ttl { font-size: var(--text-title-size); font-weight: 600; letter-spacing: -0.008em; }
+  .proj .sub { font-size: var(--text-caption-size); color: var(--muted-foreground); margin-top: 2px; font-family: var(--font-mono); }
+  .proj .prog { margin-top: var(--space-4); }
+  .proj .prog .lbls { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: var(--text-caption-size); }
+  .proj .prog .lbls .pct { font-family: var(--font-mono); font-weight: 600; }
+  .proj .foot { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-4); }
+  .proj .foot .who { display: flex; align-items: center; gap: 8px; }
+
+  .new-proj { border: 1.5px dashed var(--outline-strong); background: transparent; box-shadow: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); min-height: 290px; color: var(--muted-foreground); transition: all var(--duration-base) var(--ease-standard); }
+  .new-proj:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-subtle); transform: none; }
+  .new-proj .plus { width: 48px; height: 48px; border-radius: var(--radius-full); background: var(--surface-variant); display: grid; place-items: center; transition: all var(--duration-base) var(--ease-standard); }
+  .new-proj:hover .plus { background: var(--primary); color: var(--on-primary); }
+
+  /* ACTIVITY (right rail inside content when wide) */
+  .layout { display: grid; grid-template-columns: 1fr; gap: var(--space-8); }
+
+  @media (max-width: 880px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .searchbar { width: 180px; }
+    .content { padding: var(--space-5); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+        <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="var(--on-primary)" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+        <rect x="6" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+        <rect x="6" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+      </svg>
+      <div class="brand-name"><b>Annotation Studio</b><span>Acme Vision</span></div>
+    </div>
+    <nav class="nav">
+      <a href="#" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Projects</a>
+      <a href="Dataset.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9" /></svg>Datasets</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/></svg>Models<span class="badge badge-secondary">beta</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>Exports</a>
+      <div class="nav-group">Workspace</div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke-linecap="round"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" stroke-linecap="round"/></svg>Team</a>
+      <a href="Settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 14H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 10 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 20.4 10H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="usage">
+        <div class="row"><span class="t-caption">Images this month</span><span class="t-caption mono" style="font-weight:600">18.2k / 25k</span></div>
+        <div class="progress"><div class="bar" style="width:73%"></div></div>
+        <button class="btn btn-tonal btn-sm btn-block" style="margin-top:12px">Upgrade plan</button>
+      </div>
+      <div class="userbox">
+        <span class="avatar md" style="background:var(--blue-500);color:#fff">AM</span>
+        <div class="meta"><b>Ana Marquez</b><span>ana@acmevision.ai</span></div>
+        <button class="icon-btn sm" aria-label="Account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <h1>Projects</h1>
+      <div class="grow"></div>
+      <div class="searchbar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+        <input placeholder="Search projects…" id="search" />
+        <kbd class="key">/</kbd>
+      </div>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <button class="btn btn-primary" id="newBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>New project</button>
+    </header>
+
+    <div class="content">
+      <!-- STATS -->
+      <div class="stats" id="stats"></div>
+
+      <!-- LIST TOOLBAR -->
+      <div class="listbar">
+        <h2>All projects</h2>
+        <span class="badge badge-neutral" id="projCount">7</span>
+        <div class="grow"></div>
+        <div class="row" style="gap:8px">
+          <button class="chip filter selected">All</button>
+          <button class="chip filter">Active</button>
+          <button class="chip filter">In review</button>
+          <button class="chip filter">Archived</button>
+        </div>
+        <div class="select-wrap"><select class="select-native" style="height:34px;font-size:var(--text-label-size)"><option>Recently updated</option><option>Name A–Z</option><option>Most images</option><option>Progress</option></select></div>
+        <div class="seg" role="group" aria-label="View">
+          <button aria-pressed="true" id="gridView" aria-label="Grid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+          <button aria-pressed="false" id="listView" aria-label="List"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+        </div>
+      </div>
+
+      <!-- GRID -->
+      <div class="grid" id="projGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toastHost" style="position:fixed;bottom:var(--space-6);right:var(--space-6);z-index:var(--z-toast);display:flex;flex-direction:column;gap:10px;align-items:flex-end"></div>
+
+<script>
+  const $ = (s,r=document)=>r.querySelector(s); const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+  // ---- Scene generator (abstract photographic covers) ----
+  const scenes = {
+    street: 'linear-gradient(180deg,#2b3a55,#3d4a66 38%,#585c66 50%,#2a2d35)',
+    aerial: 'linear-gradient(135deg,#3a5a40,#588157 45%,#a3b18a 80%,#dad7cd)',
+    retail: 'linear-gradient(160deg,#22223b,#4a4e69 55%,#9a8c98)',
+    medical:'linear-gradient(150deg,#1d3557,#457b9d 60%,#a8dadc)',
+    factory:'linear-gradient(165deg,#3d2c2e,#774c60 55%,#b56576)',
+    drone:  'linear-gradient(180deg,#264653,#2a9d8f 55%,#e9c46a)',
+    docs:   'linear-gradient(160deg,#383d3b,#6b705c 55%,#cb997e)',
+  };
+
+  // ---- Stats ----
+  const stats = [
+    { lab:"Total projects", val:"7", delta:"+2 this month", dir:"up", color:"var(--primary)", bg:"var(--primary-subtle)", ic:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>', spark:"up" },
+    { lab:"Images labeled", val:"42.8k", delta:"+5.1k this week", dir:"up", color:"var(--success)", bg:"var(--success-container)", ic:'<rect x="4" y="4" width="16" height="16" rx="1.5" stroke-dasharray="3 2.5"/>', spark:"up" },
+    { lab:"Annotations", val:"311k", delta:"+18% vs last mo", dir:"up", color:"var(--secondary)", bg:"var(--secondary-container)", ic:'<path d="M4 3l7.5 18 2.3-7.2L21 11.5z"/>', spark:"up" },
+    { lab:"Avg. accuracy", val:"96.4%", delta:"Stable", dir:"flat", color:"var(--warning)", bg:"var(--warning-container)", ic:'<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/>', spark:"flat" },
+  ];
+  function sparkPath(kind) {
+    return kind === "up"
+      ? "M0 38 C18 36 24 28 38 24 C52 20 60 22 74 12 C82 7 86 6 90 4"
+      : "M0 24 C18 22 24 26 38 22 C52 18 60 24 74 20 C82 18 86 22 90 20";
+  }
+  $("#stats").innerHTML = stats.map(s => `
+    <div class="stat">
+      <div class="ico" style="background:${s.bg};color:${s.color}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">${s.ic}</svg></div>
+      <div class="lab">${s.lab}</div>
+      <div class="val">${s.val}</div>
+      <div class="delta ${s.dir}">${s.dir==="up"?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg>':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14" stroke-linecap="round"/></svg>'}${s.delta}</div>
+      <svg class="spark" viewBox="0 0 90 42" fill="none" preserveAspectRatio="none"><path d="${sparkPath(s.spark)}" stroke="${s.color}" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>`).join("");
+
+  // ---- Projects ----
+  const projects = [
+    { name:"Traffic — Q3 dashcam", imgs:2480, done:82, status:"active", scene:"street", team:["AM","KP","JR"], extra:4, updated:"2m ago", classes:6, href:"Annotation Workspace.html" },
+    { name:"Warehouse pallets", imgs:1840, done:64, status:"active", scene:"factory", team:["JR","MN"], extra:2, updated:"1h ago", classes:4 },
+    { name:"Retail shelf audit", imgs:3920, done:97, status:"review", scene:"retail", team:["KP","AM","SL","JR"], extra:6, updated:"3h ago", classes:11 },
+    { name:"Drone crop survey", imgs:980, done:41, status:"active", scene:"drone", team:["SL"], extra:1, updated:"yesterday", classes:8 },
+    { name:"Medical X-ray triage", imgs:560, done:100, status:"review", scene:"medical", team:["MN","AM"], extra:3, updated:"2d ago", classes:5 },
+    { name:"Aerial land use", imgs:1320, done:23, status:"active", scene:"aerial", team:["JR","KP"], extra:0, updated:"4d ago", classes:9 },
+    { name:"Invoice fields OCR", imgs:740, done:88, status:"archived", scene:"docs", team:["SL","MN"], extra:1, updated:"2w ago", classes:14 },
+  ];
+  const avatarColors = { AM:"var(--blue-500)", KP:"var(--violet-500)", JR:"var(--green-500)", MN:"var(--amber-500)", SL:"var(--cyan-500)", default:"var(--neutral-400)" };
+  const statusBadge = { active:'<span class="badge badge-success"><span class="dot"></span>Active</span>', review:'<span class="badge badge-warning"><span class="dot"></span>In review</span>', archived:'<span class="badge badge-neutral">Archived</span>' };
+
+  function avatars(team, extra) {
+    let h = '<span class="avatar-stack">';
+    team.slice(0,3).forEach(t => h += `<span class="avatar xs" style="background:${avatarColors[t]||avatarColors.default};color:#fff">${t}</span>`);
+    if (extra > 0) h += `<span class="avatar xs" style="background:var(--surface-variant);color:var(--muted-foreground)">+${extra}</span>`;
+    return h + '</span>';
+  }
+  function projCard(p) {
+    const barColor = p.done >= 95 ? "var(--success)" : "var(--primary)";
+    return `<article class="proj" ${p.href?`data-href="${p.href}"`:""}>
+      <div class="cover">
+        <div class="scene" style="background:${scenes[p.scene]}"></div>
+        <div class="ov"></div>
+        <div class="tags">${statusBadge[p.status]}</div>
+        <button class="icon-btn sm menu-btn" aria-label="Project menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+      </div>
+      <div class="body">
+        <div class="ttl">${p.name}</div>
+        <div class="sub">${p.imgs.toLocaleString()} images · ${p.classes} classes</div>
+        <div class="prog">
+          <div class="lbls"><span class="muted">Labeled</span><span class="pct" style="color:${barColor}">${p.done}%</span></div>
+          <div class="progress"><div class="bar" style="width:${p.done}%;background:${barColor}"></div></div>
+        </div>
+        <div class="foot">
+          <div class="who">${avatars(p.team, p.extra)}</div>
+          <span class="t-caption" style="font-family:var(--font-mono)">${p.updated}</span>
+        </div>
+      </div>
+    </article>`;
+  }
+  let filter = "all";
+  function render() {
+    const q = $("#search").value.toLowerCase();
+    const list = projects.filter(p =>
+      (filter === "all" || p.status === filter || (filter === "active" && p.status==="active")) &&
+      p.name.toLowerCase().includes(q));
+    $("#projGrid").innerHTML = list.map(projCard).join("") +
+      `<button class="proj new-proj" id="newCard"><div class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></div><div style="font-weight:600;font-size:var(--text-label-size)">New project</div><div class="t-caption" style="text-align:center;max-width:20ch">Upload images and start labeling</div></button>`;
+    $("#projCount").textContent = list.length;
+    $$(".proj[data-href]").forEach(c => c.addEventListener("click", (e) => { if (e.target.closest(".menu-btn")) { e.stopPropagation(); return; } window.location.href = c.dataset.href; }));
+    $$(".proj:not([data-href]):not(.new-proj)").forEach(c => c.addEventListener("click", () => toast("Opening project", "Loading dataset…")));
+    $("#newCard")?.addEventListener("click", () => toast("New project", "Upload flow would open here."));
+  }
+  $("#search").addEventListener("input", render);
+  $$(".chip.filter").forEach(c => c.addEventListener("click", () => {
+    $$(".chip.filter").forEach(x => x.classList.remove("selected")); c.classList.add("selected");
+    filter = c.textContent.toLowerCase().replace("in review","review"); if (filter==="all") filter="all"; render();
+  }));
+  $("#newBtn").addEventListener("click", () => toast("New project", "Upload flow would open here."));
+
+  // view toggle (visual)
+  $("#gridView").addEventListener("click", () => { $("#gridView").setAttribute("aria-pressed","true"); $("#listView").setAttribute("aria-pressed","false"); $("#projGrid").style.gridTemplateColumns = "repeat(auto-fill, minmax(280px, 1fr))"; });
+  $("#listView").addEventListener("click", () => { $("#listView").setAttribute("aria-pressed","true"); $("#gridView").setAttribute("aria-pressed","false"); $("#projGrid").style.gridTemplateColumns = "1fr"; });
+
+  // theme
+  function syncThemeIcon(){ const d = window.ASTheme.resolved()==="dark"; $("#themeIcon").innerHTML = d ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'; }
+  $("#themeBtn").addEventListener("click", () => window.ASTheme.set(window.ASTheme.resolved()==="dark"?"light":"dark"));
+  window.addEventListener("themechange", syncThemeIcon);
+
+  // search hotkey
+  document.addEventListener("keydown", (e) => { if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $("#search").focus(); } });
+
+  function toast(title, msg) {
+    const t = document.createElement("div");
+    t.style.cssText = "display:flex;gap:12px;align-items:flex-start;min-width:280px;max-width:360px;background:var(--surface);border:1px solid var(--outline);border-left:3px solid var(--primary);border-radius:var(--radius-lg);box-shadow:var(--elevation-4);padding:12px 14px;transform:translateX(120%);transition:transform var(--duration-slow) var(--ease-spring)";
+    t.innerHTML = `<span style="color:var(--primary);flex:none;width:18px;height:18px;margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div style="flex:1"><div class="t-label" style="margin-bottom:2px">${title}</div><div class="t-caption">${msg}</div></div>`;
+    $("#toastHost").appendChild(t); requestAnimationFrame(()=>t.style.transform="translateX(0)");
+    setTimeout(()=>{ t.style.transform="translateX(120%)"; setTimeout(()=>t.remove(),400); }, 3000);
+  }
+
+  syncThemeIcon(); render();
+</script>
+</body>
+</html>

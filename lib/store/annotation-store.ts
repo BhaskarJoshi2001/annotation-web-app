@@ -216,6 +216,21 @@ export const useAnnotationStore = create<AnnotationStore>()(
       }),
       {
         name: 'annotation-storage',
+        version: 1,
+        // v0 persisted annotations in canvas-display coordinates. They are
+        // incompatible with the current image-space storage, so drop them.
+        migrate: (persistedState, version) => {
+          if (version < 1) {
+            const prev = persistedState as { image?: ImageData | null } | null;
+            return {
+              image: prev?.image ?? null,
+              annotations: [],
+              history: [{ annotations: [] }],
+              historyStep: 0,
+            };
+          }
+          return persistedState as AnnotationStore;
+        },
         partialize: (state) => ({
           annotations: state.annotations,
           image: state.image,

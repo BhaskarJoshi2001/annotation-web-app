@@ -1,17 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* ============================================================================
    ANNOTATION STUDIO — DESIGN TOKENS
-   Ported from the Claude Design handoff. Material-3-inspired, premium-SaaS.
-   Theme is applied via [data-theme] on <html>; the `.dark` class is kept in
-   sync (by the ThemeProvider) so Tailwind's class-based `dark:` variants and
-   these semantic tokens always agree.
+   Single source of truth. Material-3-inspired, premium-SaaS. Light + dark.
+   Apply [data-theme="dark"] (or "light") to any element to scope a theme.
    ============================================================================ */
+
+/* ----------------------------------------------------------------------------
+   PRIMITIVE PALETTE — raw tonal scales (theme-independent)
+   ---------------------------------------------------------------------------- */
 :root {
   /* Brand / Primary — refined blue */
-  --blue-50: #eef4ff;
+  --blue-50:  #eef4ff;
   --blue-100: #dbe7fe;
   --blue-200: #bfd3fe;
   --blue-300: #93b4fd;
@@ -23,9 +21,9 @@
   --blue-900: #1e3a8a;
   --blue-950: #172554;
 
-  /* Neutral — cool slate with a faint blue undertone */
-  --neutral-0: #ffffff;
-  --neutral-50: #f7f9fc;
+  /* Neutral — cool slate with a faint blue undertone (tonal surfaces) */
+  --neutral-0:   #ffffff;
+  --neutral-50:  #f7f9fc;
   --neutral-100: #eef2f8;
   --neutral-150: #e8edf5;
   --neutral-200: #e2e8f2;
@@ -40,7 +38,7 @@
   --neutral-950: #0a1120;
   --neutral-1000: #060b16;
 
-  /* Accent — violet */
+  /* Accent — violet (secondary/tertiary highlights) */
   --violet-100: #ede9fe;
   --violet-300: #c4b5fd;
   --violet-500: #8b5cf6;
@@ -52,23 +50,29 @@
   --green-500: #10b981;
   --green-600: #059669;
   --green-700: #047857;
+
   --amber-100: #fef3c7;
   --amber-500: #f59e0b;
   --amber-600: #d97706;
   --amber-700: #b45309;
+
   --red-100: #fee2e2;
   --red-400: #f87171;
   --red-500: #ef4444;
   --red-600: #dc2626;
   --red-700: #b91c1c;
+
   --cyan-500: #06b6d4;
   --pink-500: #ec4899;
   --orange-500: #f97316;
 
-  /* Typography (Geist via next/font variables, with fallbacks) */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  /* ------------------------------------------------------------------------
+     TYPOGRAPHY
+     ------------------------------------------------------------------------ */
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 
+  /* role: size / line-height / weight / tracking */
   --text-display-size: 48px;   --text-display-lh: 56px;   --text-display-weight: 600; --text-display-tracking: -0.02em;
   --text-headline-size: 32px;  --text-headline-lh: 40px;  --text-headline-weight: 600; --text-headline-tracking: -0.018em;
   --text-title-lg-size: 22px;  --text-title-lg-lh: 28px;  --text-title-lg-weight: 600; --text-title-lg-tracking: -0.012em;
@@ -79,34 +83,71 @@
   --text-caption-size: 12px;   --text-caption-lh: 16px;   --text-caption-weight: 500; --text-caption-tracking: 0.01em;
   --text-overline-size: 11px;  --text-overline-lh: 16px;  --text-overline-weight: 600; --text-overline-tracking: 0.08em;
 
-  /* Spacing — 4px base */
-  --space-0: 0px; --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
-  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
-  --space-16: 64px; --space-20: 80px; --space-24: 96px;
+  /* ------------------------------------------------------------------------
+     SPACING — 4px base
+     ------------------------------------------------------------------------ */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
 
-  /* Radii */
-  --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px;
-  --radius-xl: 16px; --radius-2xl: 20px; --radius-3xl: 28px; --radius-full: 9999px;
+  /* ------------------------------------------------------------------------
+     RADII
+     ------------------------------------------------------------------------ */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 28px;
+  --radius-full: 9999px;
 
-  /* Motion */
-  --duration-instant: 80ms; --duration-fast: 150ms; --duration-base: 200ms;
-  --duration-slow: 300ms; --duration-slower: 450ms;
+  /* ------------------------------------------------------------------------
+     MOTION
+     ------------------------------------------------------------------------ */
+  --duration-instant: 80ms;
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 450ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0, 1);
   --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* Z-index scale */
-  --z-base: 0; --z-raised: 10; --z-sticky: 100; --z-overlay: 1000; --z-drawer: 1100;
-  --z-modal: 1200; --z-popover: 1300; --z-toast: 1400; --z-tooltip: 1500;
+  /* ------------------------------------------------------------------------
+     Z-INDEX SCALE
+     ------------------------------------------------------------------------ */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-overlay: 1000;
+  --z-drawer: 1100;
+  --z-modal: 1200;
+  --z-popover: 1300;
+  --z-toast: 1400;
+  --z-tooltip: 1500;
 }
 
-/* SEMANTIC TOKENS — LIGHT (default) */
+/* ----------------------------------------------------------------------------
+   SEMANTIC TOKENS — LIGHT (default)
+   ---------------------------------------------------------------------------- */
 :root,
 [data-theme="light"] {
   color-scheme: light;
 
+  /* Surfaces (Material tonal elevation: higher = lighter/closer) */
   --background: var(--neutral-50);
   --surface: var(--neutral-0);
   --surface-variant: var(--neutral-100);
@@ -116,14 +157,17 @@
   --surface-inverse: var(--neutral-900);
   --on-surface-inverse: var(--neutral-50);
 
+  /* Foreground / text */
   --foreground: var(--neutral-900);
   --muted-foreground: var(--neutral-500);
   --subtle-foreground: var(--neutral-400);
 
+  /* Borders / dividers */
   --outline: var(--neutral-200);
   --outline-strong: var(--neutral-300);
   --outline-subtle: var(--neutral-150);
 
+  /* Primary */
   --primary: var(--blue-600);
   --primary-hover: var(--blue-700);
   --primary-active: var(--blue-800);
@@ -133,11 +177,13 @@
   --primary-subtle: var(--blue-50);
   --ring: var(--blue-600);
 
+  /* Secondary / accent */
   --secondary: var(--violet-600);
   --on-secondary: #ffffff;
   --secondary-container: var(--violet-100);
   --on-secondary-container: var(--violet-700);
 
+  /* Functional */
   --success: var(--green-600);
   --on-success: #ffffff;
   --success-container: var(--green-100);
@@ -156,11 +202,13 @@
   --info: var(--blue-600);
   --info-container: var(--blue-100);
 
+  /* Component conveniences */
   --input-bg: var(--neutral-0);
   --input-border: var(--neutral-300);
   --overlay-scrim: rgba(15, 23, 42, 0.45);
   --highlight: rgba(255, 255, 255, 0.7);
 
+  /* Elevation (Material levels 0–5) */
   --elevation-0: none;
   --elevation-1: 0 1px 2px -1px rgba(15, 23, 42, 0.10), 0 1px 3px 0 rgba(15, 23, 42, 0.06);
   --elevation-2: 0 2px 4px -2px rgba(15, 23, 42, 0.10), 0 4px 8px -2px rgba(15, 23, 42, 0.08);
@@ -170,9 +218,10 @@
   --focus-ring: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
 }
 
-/* SEMANTIC TOKENS — DARK (data-theme or .dark class) */
-[data-theme="dark"],
-.dark {
+/* ----------------------------------------------------------------------------
+   SEMANTIC TOKENS — DARK
+   ---------------------------------------------------------------------------- */
+[data-theme="dark"] {
   color-scheme: dark;
 
   --background: var(--neutral-950);
@@ -238,7 +287,11 @@
   --focus-ring: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
 }
 
-/* Base */
+/* ----------------------------------------------------------------------------
+   BASE RESET + TYPOGRAPHY UTILITIES (shared)
+   ---------------------------------------------------------------------------- */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -247,20 +300,15 @@ body {
   color: var(--foreground);
   background: var(--background);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: "cv11", "ss01";
 }
 ::selection { background: var(--primary-container); color: var(--on-primary-container); }
 
-/* Headings must not inherit the body's fixed line-height (prevents overlap on wrap). */
+/* Headings must never inherit the body's fixed 22px line-height (causes overlap
+   when an unclassed h1/h2 wraps). Only line-height is reset to stay layout-safe. */
 h1, h2, h3, h4, h5, h6 { line-height: 1.15; }
 
-* {
-  @apply border-gray-200 dark:border-gray-700;
-}
-
-/* Typography utilities */
 .t-display   { font-size: var(--text-display-size);  line-height: var(--text-display-lh);  font-weight: var(--text-display-weight);  letter-spacing: var(--text-display-tracking); }
 .t-headline  { font-size: var(--text-headline-size); line-height: var(--text-headline-lh); font-weight: var(--text-headline-weight); letter-spacing: var(--text-headline-tracking); }
 .t-title-lg  { font-size: var(--text-title-lg-size); line-height: var(--text-title-lg-lh); font-weight: var(--text-title-lg-weight); letter-spacing: var(--text-title-lg-tracking); }
@@ -272,120 +320,6 @@ h1, h2, h3, h4, h5, h6 { line-height: 1.15; }
 .t-overline  { font-size: var(--text-overline-size); line-height: var(--text-overline-lh); font-weight: var(--text-overline-weight); letter-spacing: var(--text-overline-tracking); text-transform: uppercase; }
 .mono        { font-family: var(--font-mono); font-feature-settings: "zero" 1; }
 
-/* Material Design 3 helpers (used by the existing annotation tool) */
-@layer components {
-  .glass-surface {
-    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/30;
-  }
-
-  .glass-surface-light {
-    @apply bg-white/60 backdrop-blur-lg border border-white/30;
-  }
-
-  .surface-elevated {
-    @apply bg-white dark:bg-gray-900 shadow-soft;
-  }
-
-  .surface-elevated-medium {
-    @apply bg-white dark:bg-gray-900 shadow-medium;
-  }
-
-  .surface-elevated-high {
-    @apply bg-white dark:bg-gray-900 shadow-large;
-  }
-
-  .interactive-hover {
-    @apply transition-all duration-200 hover:shadow-medium hover:-translate-y-0.5;
-  }
-
-  .interactive-press {
-    @apply active:scale-95 transition-transform duration-150;
-  }
-
-  .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium px-4 py-2.5 rounded-xl
-           shadow-soft hover:shadow-medium transition-all duration-200
-           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600;
-  }
-
-  .btn-secondary {
-    @apply bg-surface-dark dark:bg-surface-variant hover:bg-surface-darker dark:hover:bg-gray-700
-           text-gray-700 dark:text-gray-200 font-medium px-4 py-2.5 rounded-xl
-           shadow-soft hover:shadow-medium transition-all duration-200
-           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-ghost {
-    @apply hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200
-           font-medium px-4 py-2.5 rounded-xl transition-all duration-200
-           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-icon {
-    @apply w-10 h-10 flex items-center justify-center rounded-xl
-           hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200
-           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .input-field {
-    @apply w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
-           rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-           transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500;
-  }
-
-  .card {
-    @apply bg-white dark:bg-gray-900 rounded-2xl shadow-soft border border-gray-200 dark:border-gray-700
-           transition-all duration-200;
-  }
-
-  .card-hover {
-    @apply card hover:shadow-medium hover:-translate-y-1 cursor-pointer;
-  }
-
-  .tooltip {
-    @apply absolute z-50 px-3 py-1.5 text-xs font-medium text-white bg-gray-900
-           dark:bg-gray-700 rounded-lg shadow-lg opacity-0 transition-opacity duration-200;
-  }
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: #d4d4d4 transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #d4d4d4;
-    border-radius: 20px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: #a3a3a3;
-  }
-
-  .focus-ring {
-    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }

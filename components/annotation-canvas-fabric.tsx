@@ -1,13 +1,38 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Canvas, Rect, Polygon as FabricPolygon, Circle, Image as FabricImage, Point } from 'fabric';
+import { Canvas, Rect, Polygon as FabricPolygon, Circle, FabricImage, Point } from 'fabric';
+import type { TPointerEventInfo, TPointerEvent } from 'fabric';
 import { useAnnotationStore } from '@/lib/store/annotation-store';
-import type { BoundingBox as BoundingBoxType } from '@/lib/types';
+import type { BoundingBox as BoundingBoxType, Polygon as PolygonType, Point as PointType } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface AnnotationCanvasHandle {
   getCanvas: () => Canvas | null;
+}
+
+/**
+ * Maps between two coordinate spaces:
+ *  - "scene" space: Fabric's canvas coordinate system, where the fitted image
+ *    sits at (offsetX, offsetY) scaled by `scale`. This is what `getPointer`
+ *    returns and what objects are positioned in.
+ *  - "image" space: the source image's own pixel grid (0,0 .. width,height).
+ *
+ * Annotations are persisted in IMAGE space so that exports (COCO/YOLO/JSON) and
+ * stored coordinates stay correct regardless of zoom, pan, or canvas size.
+ */
+interface ImagePlacement {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+function sceneToImage(p: PointType, pl: ImagePlacement): PointType {
+  return { x: (p.x - pl.offsetX) / pl.scale, y: (p.y - pl.offsetY) / pl.scale };
+}
+
+function imageToScene(p: PointType, pl: ImagePlacement): PointType {
+  return { x: p.x * pl.scale + pl.offsetX, y: p.y * pl.scale + pl.offsetY };
 }
 
 export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref) => {
@@ -26,7 +51,6 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     startPolygon,
     addPolygonPoint,
     updatePolygonPreview,
-    completePolygon,
     cancelPolygon,
   } = useAnnotationStore();
 
@@ -39,6 +63,16 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
   const [canvasReady, setCanvasReady] = useState(false);
   const startPointRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Image placement (scene <-> image transform). Kept in both a ref (for event
+  // handlers, always current) and state (to re-run the annotation render effect).
+  const [imagePlacement, setImagePlacement] = useState<ImagePlacement | null>(null);
+  const imagePlacementRef = useRef<ImagePlacement | null>(null);
+
+  // Panning state
+  const [isPanning, setIsPanning] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+
   // Expose canvas ref to parent
   useImperativeHandle(ref, () => ({
     getCanvas: () => fabricCanvasRef.current,
@@ -46,7 +80,6 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
 
   // Set mounted state
   useEffect(() => {
-    console.log('Component mounted');
     setIsMounted(true);
   }, []);
 
@@ -54,31 +87,18 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
   useEffect(() => {
     if (!isMounted || !canvasRef.current || fabricCanvasRef.current) return;
 
-    console.log('Initializing Fabric canvas');
-
-    // Set initial dimensions first
     if (containerRef.current) {
       const { width, height } = containerRef.current.getBoundingClientRect();
-      console.log('Canvas dimensions:', width, height);
-
-      if (width === 0 || height === 0) {
-        console.error('Container has zero dimensions!');
-        return;
-      }
-
+      if (width === 0 || height === 0) return;
       canvasRef.current.width = width;
       canvasRef.current.height = height;
     }
 
     const canvas = new Canvas(canvasRef.current, {
       selection: selectedTool === 'select',
-      backgroundColor: '#f3f4f6',
+      backgroundColor: 'transparent',
     });
 
-    console.log('Fabric canvas initialized', {
-      width: canvas.getWidth(),
-      height: canvas.getHeight()
-    });
     fabricCanvasRef.current = canvas;
     setCanvasReady(true);
 
@@ -87,17 +107,15 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
       fabricCanvasRef.current = null;
       setCanvasReady(false);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted]);
 
   // Handle resize
   useEffect(() => {
     const updateDimensions = (): void => {
-      if (containerRef.current) {
+      if (containerRef.current && fabricCanvasRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-
-        if (fabricCanvasRef.current) {
-          fabricCanvasRef.current.setDimensions({ width, height });
-        }
+        fabricCanvasRef.current.setDimensions({ width, height });
       }
     };
 
@@ -106,239 +124,171 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  // Load and display image
+  // Load and display image, then record its placement transform
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !image || !canvasReady) {
-      console.log('Skipping image load - canvas:', !!canvas, 'image:', !!image, 'canvasReady:', canvasReady);
-      return;
-    }
+    if (!canvas || !image || !canvasReady) return;
 
-    console.log('Loading image:', image.url);
-    console.log('Canvas state:', {
-      width: canvas.getWidth(),
-      height: canvas.getHeight(),
-      ready: canvasReady
-    });
-
-    // Clear canvas first
     canvas.clear();
-    canvas.backgroundColor = '#f3f4f6';
+    canvas.backgroundColor = 'transparent';
 
-    FabricImage.fromURL(
-      image.url,
-      {
-        crossOrigin: 'anonymous',
-      }
-    ).then((img) => {
-      const canvasWidth = canvas.getWidth();
-      const canvasHeight = canvas.getHeight();
-      const imgWidth = img.width || 1;
-      const imgHeight = img.height || 1;
+    FabricImage.fromURL(image.url, { crossOrigin: 'anonymous' })
+      .then((img) => {
+        const canvasWidth = canvas.getWidth();
+        const canvasHeight = canvas.getHeight();
+        const imgWidth = img.width || 1;
+        const imgHeight = img.height || 1;
 
-      console.log('Image loaded successfully', {
-        imgWidth,
-        imgHeight,
-        canvasWidth,
-        canvasHeight
+        // Fit the image within the canvas while preserving aspect ratio.
+        const scale = Math.min(canvasWidth / imgWidth, canvasHeight / imgHeight);
+        const scaledWidth = imgWidth * scale;
+        const scaledHeight = imgHeight * scale;
+        const left = (canvasWidth - scaledWidth) / 2;
+        const top = (canvasHeight - scaledHeight) / 2;
+
+        img.scale(scale);
+        img.set({ left, top, selectable: false, evented: false });
+
+        canvas.backgroundImage = img;
+        canvas.renderAll();
+
+        const placement: ImagePlacement = { scale, offsetX: left, offsetY: top };
+        imagePlacementRef.current = placement;
+        setImagePlacement(placement);
+      })
+      .catch((error) => {
+        console.error('Failed to load image:', image.url, error);
       });
-
-      // Calculate scale to fit image within canvas while maintaining aspect ratio
-      const scaleX = canvasWidth / imgWidth;
-      const scaleY = canvasHeight / imgHeight;
-      const scale = Math.min(scaleX, scaleY);
-
-      // Apply scaling
-      img.scale(scale);
-
-      // Center the image
-      const scaledWidth = imgWidth * scale;
-      const scaledHeight = imgHeight * scale;
-      const left = (canvasWidth - scaledWidth) / 2;
-      const top = (canvasHeight - scaledHeight) / 2;
-
-      console.log('Image scaling', {
-        scale,
-        scaledWidth,
-        scaledHeight,
-        left,
-        top
-      });
-
-      img.set({
-        left,
-        top,
-        selectable: false,
-        evented: false,
-      });
-
-      canvas.backgroundImage = img;
-      canvas.renderAll();
-      console.log('Canvas renderAll called');
-    }).catch((error) => {
-      console.error('Error loading image:', error);
-      console.error('Failed URL:', image.url);
-    });
   }, [image, canvasReady]);
 
-  // Apply zoom
+  // Apply zoom (operates on the viewport, independent of coordinate space)
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const center = canvas.getCenter();
-    canvas.zoomToPoint(
-      new Point(center.left, center.top),
-      zoomState.scale
-    );
+    const center = new Point(canvas.getWidth() / 2, canvas.getHeight() / 2);
+    canvas.zoomToPoint(center, zoomState.scale);
     canvas.requestRenderAll();
   }, [zoomState.scale]);
 
-  // Sync annotations to canvas
+  // Sync annotations (stored in image space) to canvas objects (scene space)
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // Remove all annotation objects (keep background image)
-    const objects = canvas.getObjects();
-    objects.forEach((obj: any) => {
-      if (obj.data?.isAnnotation || obj.data?.isPolygonPreview) {
+    // Remove existing annotation/preview objects (keep background image)
+    canvas.getObjects().forEach((obj) => {
+      const data = (obj as { data?: { isAnnotation?: boolean; isPolygonPreview?: boolean } }).data;
+      if (data?.isAnnotation || data?.isPolygonPreview) {
         canvas.remove(obj);
       }
     });
 
-    // Add current annotations
+    const placement = imagePlacement;
+    if (!placement) {
+      canvas.requestRenderAll();
+      return;
+    }
+
     annotations.forEach((annotation) => {
       if (annotation.type === 'bbox') {
+        const topLeft = imageToScene({ x: annotation.x, y: annotation.y }, placement);
         const rect = new Rect({
-          left: annotation.x,
-          top: annotation.y,
-          width: annotation.width,
-          height: annotation.height,
+          left: topLeft.x,
+          top: topLeft.y,
+          width: annotation.width * placement.scale,
+          height: annotation.height * placement.scale,
           fill: 'transparent',
           stroke: annotation.color,
           strokeWidth: 2,
+          strokeUniform: true,
           selectable: selectedTool === 'select',
           hasControls: true,
           hasBorders: true,
           lockRotation: true,
         });
+        (rect as { data?: unknown }).data = { isAnnotation: true, annotationId: annotation.id };
 
-        // Store annotation data
-        (rect as any).data = {
-          isAnnotation: true,
-          annotationId: annotation.id,
-        };
-
-        // Update annotation on modification
         rect.on('modified', () => {
-          const id = (rect as any).data?.annotationId;
-          if (id) {
-            updateAnnotation(id, {
-              x: rect.left || 0,
-              y: rect.top || 0,
-              width: (rect.width || 0) * (rect.scaleX || 1),
-              height: (rect.height || 0) * (rect.scaleY || 1),
-            });
-            // Reset scale after applying to dimensions
-            rect.set({ scaleX: 1, scaleY: 1 });
-          }
+          const sceneTopLeft = { x: rect.left || 0, y: rect.top || 0 };
+          const img = sceneToImage(sceneTopLeft, placement);
+          updateAnnotation<BoundingBoxType>(annotation.id, {
+            x: img.x,
+            y: img.y,
+            width: ((rect.width || 0) * (rect.scaleX || 1)) / placement.scale,
+            height: ((rect.height || 0) * (rect.scaleY || 1)) / placement.scale,
+          });
+          rect.set({ scaleX: 1, scaleY: 1 });
         });
 
-        // Selection handling
-        rect.on('selected', () => {
-          const id = (rect as any).data?.annotationId;
-          if (id) {
-            setSelectedAnnotation(id);
-          }
-        });
+        rect.on('selected', () => setSelectedAnnotation(annotation.id));
 
         canvas.add(rect);
-
-        // Highlight selected annotation
-        if (annotation.id === selectedAnnotationId) {
-          canvas.setActiveObject(rect);
-        }
+        if (annotation.id === selectedAnnotationId) canvas.setActiveObject(rect);
       } else if (annotation.type === 'polygon') {
-        const points = annotation.points.map((p) => ({ x: p.x, y: p.y }));
-        const polygon = new FabricPolygon(points, {
+        const scenePoints = annotation.points.map((p) => imageToScene(p, placement));
+        const polygon = new FabricPolygon(scenePoints, {
           fill: `${annotation.color}33`,
           stroke: annotation.color,
           strokeWidth: 2,
+          strokeUniform: true,
           selectable: selectedTool === 'select',
           objectCaching: false,
         });
+        (polygon as { data?: unknown }).data = { isAnnotation: true, annotationId: annotation.id };
 
-        (polygon as any).data = {
-          isAnnotation: true,
-          annotationId: annotation.id,
-        };
+        polygon.on('selected', () => setSelectedAnnotation(annotation.id));
 
-        // Selection handling
-        polygon.on('selected', () => {
-          const id = (polygon as any).data?.annotationId;
-          if (id) {
-            setSelectedAnnotation(id);
-          }
-        });
-
-        // Update annotation on modification
         polygon.on('modified', () => {
-          const id = (polygon as any).data?.annotationId;
-          if (id && polygon.points) {
-            const newPoints = polygon.points.map((p: any) => ({
-              x: p.x,
-              y: p.y,
-            }));
-            updateAnnotation(id, { points: newPoints });
-          }
+          if (!polygon.points) return;
+          // Fabric stores polygon points relative to the object's own origin, so
+          // reconstruct absolute scene coordinates via the object's transform.
+          const matrix = polygon.calcTransformMatrix();
+          const imagePoints = polygon.points.map((pt) => {
+            const scenePoint = new Point(
+              pt.x - polygon.pathOffset.x,
+              pt.y - polygon.pathOffset.y
+            ).transform(matrix);
+            return sceneToImage({ x: scenePoint.x, y: scenePoint.y }, placement);
+          });
+          updateAnnotation<PolygonType>(annotation.id, { points: imagePoints });
         });
 
         canvas.add(polygon);
-
-        // Highlight selected annotation
-        if (annotation.id === selectedAnnotationId) {
-          canvas.setActiveObject(polygon);
-        }
+        if (annotation.id === selectedAnnotationId) canvas.setActiveObject(polygon);
       }
     });
 
     canvas.requestRenderAll();
-  }, [annotations, selectedTool, selectedAnnotationId, updateAnnotation, setSelectedAnnotation]);
+  }, [annotations, selectedTool, selectedAnnotationId, imagePlacement, updateAnnotation, setSelectedAnnotation]);
 
-  // Render polygon preview
+  // Render in-progress polygon preview (points are kept in scene space)
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // Remove old preview objects
-    const objects = canvas.getObjects();
-    objects.forEach((obj: any) => {
-      if (obj.data?.isPolygonPreview) {
+    canvas.getObjects().forEach((obj) => {
+      if ((obj as { data?: { isPolygonPreview?: boolean } }).data?.isPolygonPreview) {
         canvas.remove(obj);
       }
     });
 
     if (polygonDrawing.isDrawing && polygonDrawing.points.length > 0) {
-      // Draw preview line
       const previewPoints = [...polygonDrawing.points];
-      if (polygonDrawing.previewPoint) {
-        previewPoints.push(polygonDrawing.previewPoint);
-      }
+      if (polygonDrawing.previewPoint) previewPoints.push(polygonDrawing.previewPoint);
 
-      const xyPoints = previewPoints.map((p) => ({ x: p.x, y: p.y }));
-      const previewLine = new FabricPolygon(xyPoints, {
+      const previewLine = new FabricPolygon(previewPoints, {
         fill: 'transparent',
         stroke: '#10b981',
         strokeWidth: 2,
+        strokeUniform: true,
         strokeDashArray: [5, 5],
         selectable: false,
         evented: false,
       });
-      (previewLine as any).data = { isPolygonPreview: true };
+      (previewLine as { data?: unknown }).data = { isPolygonPreview: true };
       canvas.add(previewLine);
 
-      // Draw point circles
       polygonDrawing.points.forEach((point, index) => {
         const circle = new Circle({
           left: point.x - 5,
@@ -350,10 +300,9 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
           selectable: false,
           evented: false,
         });
-        (circle as any).data = { isPolygonPreview: true };
+        (circle as { data?: unknown }).data = { isPolygonPreview: true };
         canvas.add(circle);
 
-        // First point indicator (larger)
         if (index === 0) {
           const firstCircle = new Circle({
             left: point.x - 8,
@@ -365,7 +314,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
             selectable: false,
             evented: false,
           });
-          (firstCircle as any).data = { isPolygonPreview: true };
+          (firstCircle as { data?: unknown }).data = { isPolygonPreview: true };
           canvas.add(firstCircle);
         }
       });
@@ -374,28 +323,61 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     canvas.requestRenderAll();
   }, [polygonDrawing]);
 
-  // Drawing mode handler
+  // Toggle selectability when the active tool changes
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
     canvas.selection = selectedTool === 'select';
-    canvas.forEachObject((obj: any) => {
-      if (obj.data?.isAnnotation) {
+    canvas.forEachObject((obj) => {
+      if ((obj as { data?: { isAnnotation?: boolean } }).data?.isAnnotation) {
         obj.selectable = selectedTool === 'select';
       }
     });
-
     canvas.requestRenderAll();
   }, [selectedTool]);
 
-  // Mouse down - start drawing bbox or add polygon point
+  // Commit the in-progress polygon, converting scene points to image space
+  const finishPolygon = useCallback(() => {
+    const placement = imagePlacementRef.current;
+    if (!placement) return;
+
+    const { annotations: currentAnnotations, polygonDrawing: drawing } = useAnnotationStore.getState();
+    if (drawing.points.length < 3) {
+      cancelPolygon();
+      return;
+    }
+
+    const newPolygon: PolygonType = {
+      id: uuidv4(),
+      type: 'polygon',
+      label: `Polygon ${currentAnnotations.length + 1}`,
+      points: drawing.points.map((p) => sceneToImage(p, placement)),
+      color: '#10b981',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    addAnnotation(newPolygon);
+    cancelPolygon();
+  }, [addAnnotation, cancelPolygon]);
+
+  // Mouse down - start drawing bbox, add polygon point, or start panning
   const handleMouseDown = useCallback(
-    (e: any) => {
+    (opt: TPointerEventInfo<TPointerEvent>) => {
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
 
-      const pointer = canvas.getPointer(e.e);
+      const ev = opt.e as MouseEvent;
+      const pointer = canvas.getScenePoint(opt.e);
+
+      if (isSpacePressed || ev.button === 1) {
+        setIsPanning(true);
+        lastPosRef.current = { x: ev.clientX, y: ev.clientY };
+        canvas.setCursor('grabbing');
+        ev.preventDefault();
+        return;
+      }
 
       if (selectedTool === 'bbox' && !isDrawing) {
         startPointRef.current = { x: pointer.x, y: pointer.y };
@@ -409,10 +391,10 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
           fill: 'transparent',
           stroke: '#3b82f6',
           strokeWidth: 2,
+          strokeUniform: true,
           selectable: false,
           evented: false,
         });
-
         canvas.add(rect);
         setDrawingRect(rect);
       } else if (selectedTool === 'polygon') {
@@ -423,52 +405,74 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
         }
       }
     },
-    [selectedTool, isDrawing, polygonDrawing.isDrawing, startPolygon, addPolygonPoint]
+    [selectedTool, isDrawing, polygonDrawing.isDrawing, startPolygon, addPolygonPoint, isSpacePressed]
   );
 
-  // Mouse move - update drawing bbox or polygon preview
+  // Mouse move - update drawing bbox, polygon preview, or pan
   const handleMouseMove = useCallback(
-    (e: any) => {
+    (opt: TPointerEventInfo<TPointerEvent>) => {
       const canvas = fabricCanvasRef.current;
       if (!canvas) return;
 
-      const pointer = canvas.getPointer(e.e);
+      const ev = opt.e as MouseEvent;
+
+      if (isPanning && lastPosRef.current) {
+        const vpt = canvas.viewportTransform;
+        if (vpt) {
+          vpt[4] += ev.clientX - lastPosRef.current.x;
+          vpt[5] += ev.clientY - lastPosRef.current.y;
+          canvas.requestRenderAll();
+          lastPosRef.current = { x: ev.clientX, y: ev.clientY };
+          canvas.setCursor('grabbing');
+        }
+        return;
+      }
+
+      const pointer = canvas.getScenePoint(opt.e);
 
       if (isDrawing && drawingRect && startPointRef.current) {
         const x = Math.min(startPointRef.current.x, pointer.x);
         const y = Math.min(startPointRef.current.y, pointer.y);
         const width = Math.abs(pointer.x - startPointRef.current.x);
         const height = Math.abs(pointer.y - startPointRef.current.y);
-
         drawingRect.set({ left: x, top: y, width, height });
         canvas.requestRenderAll();
       } else if (polygonDrawing.isDrawing && selectedTool === 'polygon') {
         updatePolygonPreview({ x: pointer.x, y: pointer.y });
       }
     },
-    [isDrawing, drawingRect, polygonDrawing.isDrawing, selectedTool, updatePolygonPreview]
+    [isDrawing, drawingRect, polygonDrawing.isDrawing, selectedTool, updatePolygonPreview, isPanning]
   );
 
-  // Mouse up - finish drawing bbox
+  // Mouse up - finish drawing bbox or stop panning
   const handleMouseUp = useCallback(() => {
     const canvas = fabricCanvasRef.current;
+
+    if (isPanning) {
+      setIsPanning(false);
+      lastPosRef.current = null;
+      canvas?.setCursor('default');
+      return;
+    }
+
     if (!canvas || !isDrawing || !drawingRect || !startPointRef.current) return;
 
-    const width = drawingRect.width || 0;
-    const height = drawingRect.height || 0;
-
+    const sceneWidth = drawingRect.width || 0;
+    const sceneHeight = drawingRect.height || 0;
     canvas.remove(drawingRect);
 
-    // Only create annotation if it has meaningful size
-    if (width > 5 && height > 5) {
+    const placement = imagePlacementRef.current;
+    // Only create an annotation if it has a meaningful size (in screen pixels)
+    if (placement && sceneWidth > 5 && sceneHeight > 5) {
+      const topLeft = sceneToImage({ x: drawingRect.left || 0, y: drawingRect.top || 0 }, placement);
       const newAnnotation: BoundingBoxType = {
         id: uuidv4(),
         type: 'bbox',
         label: `Object ${annotations.length + 1}`,
-        x: drawingRect.left || 0,
-        y: drawingRect.top || 0,
-        width,
-        height,
+        x: topLeft.x,
+        y: topLeft.y,
+        width: sceneWidth / placement.scale,
+        height: sceneHeight / placement.scale,
         color: '#3b82f6',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -479,16 +483,16 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     setIsDrawing(false);
     setDrawingRect(null);
     startPointRef.current = null;
-  }, [isDrawing, drawingRect, annotations.length, addAnnotation]);
+  }, [isDrawing, drawingRect, annotations.length, addAnnotation, isPanning]);
 
   // Double click - complete polygon
   const handleDoubleClick = useCallback(() => {
     if (polygonDrawing.isDrawing && polygonDrawing.points.length >= 3) {
-      completePolygon();
+      finishPolygon();
     }
-  }, [polygonDrawing.isDrawing, polygonDrawing.points.length, completePolygon]);
+  }, [polygonDrawing.isDrawing, polygonDrawing.points.length, finishPolygon]);
 
-  // Register event handlers
+  // Register canvas event handlers
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -506,41 +510,54 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     };
   }, [handleMouseDown, handleMouseMove, handleMouseUp, handleDoubleClick]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (Space to pan, Escape/Enter/Delete)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isSpacePressed) {
+        setIsSpacePressed(true);
+        fabricCanvasRef.current?.setCursor('grab');
+        e.preventDefault();
+        return;
+      }
+
       if (e.key === 'Escape') {
         cancelPolygon();
         setSelectedAnnotation(null);
-        if (fabricCanvasRef.current) {
-          fabricCanvasRef.current.discardActiveObject();
-          fabricCanvasRef.current.requestRenderAll();
-        }
+        fabricCanvasRef.current?.discardActiveObject();
+        fabricCanvasRef.current?.requestRenderAll();
       } else if (e.key === 'Enter') {
         if (polygonDrawing.isDrawing && polygonDrawing.points.length >= 3) {
-          completePolygon();
+          finishPolygon();
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedAnnotationId) {
-          deleteAnnotation(selectedAnnotationId);
-        }
+        if (selectedAnnotationId) deleteAnnotation(selectedAnnotationId);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && isSpacePressed) {
+        setIsSpacePressed(false);
+        setIsPanning(false);
+        lastPosRef.current = null;
+        fabricCanvasRef.current?.setCursor('default');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedAnnotationId, polygonDrawing.isDrawing, polygonDrawing.points.length, setSelectedAnnotation, deleteAnnotation, cancelPolygon, completePolygon]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [selectedAnnotationId, polygonDrawing.isDrawing, polygonDrawing.points.length, setSelectedAnnotation, deleteAnnotation, cancelPolygon, finishPolygon, isSpacePressed]);
 
   if (!image) {
-    console.log('No image loaded - showing uploader');
     return (
       <div className="flex items-center justify-center h-full bg-gray-50">
         <p className="text-gray-500">Upload an image to start annotating</p>
       </div>
     );
   }
-
-  console.log('Image loaded, isMounted:', isMounted, 'Image URL:', image.url);
 
   if (!isMounted) {
     return (
@@ -551,27 +568,8 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full relative bg-gray-200">
-      <canvas ref={canvasRef} style={{ border: '2px solid red', display: 'block' }} />
-      {/* <div className="absolute bottom-4 right-4 bg-white p-2 text-xs shadow-lg border border-gray-300 rounded max-w-sm">
-        <div className="font-bold mb-1">Debug Info:</div>
-        <div>Image: {image.name}</div>
-        <div>URL: {image.url}</div>
-        <div>Mounted: {isMounted ? 'Yes' : 'No'}</div>
-        <div>Canvas Ready: {canvasReady ? 'Yes' : 'No'}</div>
-        <div>Tool: {selectedTool}</div>
-        <div>Canvas Dims: {fabricCanvasRef.current ? `${fabricCanvasRef.current.getWidth()}×${fabricCanvasRef.current.getHeight()}` : 'N/A'}</div>
-        <div className="mt-2">
-          <a
-            href={image.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 underline"
-          >
-            Test Image Load
-          </a>
-        </div>
-      </div> */}
+    <div ref={containerRef} className="w-full h-full relative">
+      <canvas ref={canvasRef} style={{ display: 'block' }} />
     </div>
   );
 });

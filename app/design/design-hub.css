@@ -1,0 +1,65 @@
+/* Design deliverables hub — scoped recreation of the handoff index.html.
+   Every rule is namespaced under .design-hub so it never collides with the
+   annotation tool's global component classes. */
+
+.design-hub { max-width: 1100px; margin: 0 auto; padding: 0 var(--space-6) var(--space-16); }
+
+.design-hub .top { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6) 0; }
+.design-hub .logo { display: flex; align-items: center; gap: 10px; }
+.design-hub .logo svg { width: 34px; height: 34px; }
+.design-hub .logo b { font-size: var(--text-title-size); font-weight: 600; letter-spacing: -0.01em; }
+.design-hub .logo span { font-size: var(--text-caption-size); color: var(--muted-foreground); display: block; }
+.design-hub .toolbar { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+
+.design-hub .hero { padding: var(--space-8) 0 var(--space-10); }
+.design-hub .hero .eyebrow { color: var(--primary); font-weight: 600; font-size: var(--text-caption-size); letter-spacing: 0.08em; text-transform: uppercase; }
+.design-hub .hero h1 { font-size: clamp(32px, 5vw, 46px); line-height: 1.08; font-weight: 600; letter-spacing: -0.025em; margin: var(--space-3) 0 var(--space-4); max-width: 20ch; }
+.design-hub .hero p { font-size: var(--text-body-lg-size); color: var(--muted-foreground); max-width: 60ch; margin: 0; }
+
+.design-hub .step-label { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-12) 0 var(--space-5); }
+.design-hub .step-label .n { width: 30px; height: 30px; border-radius: var(--radius-md); background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-weight: 600; font-size: var(--text-label-size); flex: none; }
+.design-hub .step-label h2 { font-size: var(--text-title-lg-size); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.design-hub .step-label .meta { margin-left: auto; font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+.design-hub .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-5); }
+.design-hub .card { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--elevation-1); text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard); }
+.design-hub .card:hover { transform: translateY(-3px); box-shadow: var(--elevation-3); border-color: var(--outline-strong); }
+.design-hub .card .preview { height: 168px; position: relative; overflow: hidden; border-bottom: 1px solid var(--outline-subtle); background: var(--surface-variant); }
+.design-hub .card .body { padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; display: flex; flex-direction: column; }
+.design-hub .card .body h3 { font-size: var(--text-title-size); font-weight: 600; margin: 0 0 4px; }
+.design-hub .card .body p { font-size: var(--text-caption-size); color: var(--muted-foreground); margin: 0; flex: 1; line-height: 1.5; }
+.design-hub .card .body .go { display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: var(--text-label-size); font-weight: 600; margin-top: var(--space-4); }
+.design-hub .card .body .go svg { width: 15px; height: 15px; transition: transform var(--duration-fast) var(--ease-standard); }
+.design-hub .card:hover .body .go svg { transform: translateX(3px); }
+
+/* mini previews */
+.design-hub .pv { position: absolute; inset: 0; }
+.design-hub .pv-tokens { background: linear-gradient(135deg, var(--blue-600), var(--violet-600)); display: grid; place-items: center; }
+.design-hub .pv-tokens .ramp { display: flex; gap: 0; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--elevation-3); }
+.design-hub .pv-tokens .ramp span { width: 26px; height: 56px; }
+.design-hub .pv-comp { background: var(--surface-variant); display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 20px; }
+.design-hub .pv-card { display: grid; gap: 8px; padding: 18px; }
+.design-hub .pv-bar { height: 10px; border-radius: 3px; background: var(--outline-strong); opacity: .5; }
+
+.design-hub .note { margin-top: var(--space-12); padding: var(--space-5) var(--space-6); background: var(--primary-subtle); border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--outline)); border-radius: var(--radius-lg); display: flex; gap: var(--space-4); align-items: flex-start; }
+.design-hub .note svg { width: 20px; height: 20px; color: var(--primary); flex: none; margin-top: 2px; }
+.design-hub .note p { margin: 0; font-size: var(--text-label-size); color: var(--foreground); line-height: 1.6; }
+.design-hub .note p b { font-weight: 600; }
+.design-hub footer { text-align: center; padding: var(--space-16) 0 var(--space-12); color: var(--muted-foreground); font-size: var(--text-caption-size); }
+
+/* Minimal component classes used by the preview cards (scoped). */
+.design-hub .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--btn-h, 38px); padding: 0 var(--btn-px, 16px); border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--btn-fs, var(--text-label-size)); font-weight: 600; cursor: pointer; white-space: nowrap; }
+.design-hub .btn-sm { --btn-h: 32px; --btn-px: 12px; --btn-fs: var(--text-caption-size); }
+.design-hub .btn-primary { background: var(--primary); color: var(--on-primary); box-shadow: var(--elevation-1); }
+.design-hub .btn-outline { background: var(--surface); color: var(--foreground); border-color: var(--outline-strong); }
+
+.design-hub .badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: var(--radius-full); font-size: var(--text-caption-size); font-weight: 600; line-height: 1; white-space: nowrap; }
+.design-hub .badge .dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: currentColor; }
+.design-hub .badge-neutral { background: var(--surface-variant); color: var(--muted-foreground); border: 1px solid var(--outline); }
+.design-hub .badge-primary { background: var(--primary-container); color: var(--on-primary-container); }
+.design-hub .badge-success { background: var(--success-container); color: var(--on-success-container); }
+.design-hub .badge-warning { background: var(--warning-container); color: var(--on-warning-container); }
+.design-hub .badge-destructive { background: var(--destructive-container); color: var(--on-destructive-container); }
+
+.design-hub .chip { display: inline-flex; align-items: center; white-space: nowrap; gap: var(--space-2); height: 30px; padding: 0 12px; border-radius: var(--radius-full); background: var(--surface); border: 1px solid var(--outline-strong); font-size: var(--text-label-size); font-weight: 500; color: var(--foreground); }
+.design-hub .chip.selected { background: var(--primary-container); border-color: transparent; color: var(--on-primary-container); }

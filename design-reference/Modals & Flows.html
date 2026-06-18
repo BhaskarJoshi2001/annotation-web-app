@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Modals &amp; Flows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  body { background: var(--background); }
+
+  .page { max-width: 1080px; margin: 0 auto; padding: var(--space-10) var(--space-8) var(--space-24); }
+
+  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-6); margin-bottom: var(--space-10); }
+  .head .crumbs { display: flex; align-items: center; gap: var(--space-2); color: var(--muted-foreground); font-size: var(--text-label-size); font-weight: 500; margin-bottom: var(--space-4); }
+  .head .crumbs a { color: var(--muted-foreground); text-decoration: none; }
+  .head .crumbs a:hover { color: var(--foreground); }
+  .head h1 { margin: 0 0 var(--space-3); }
+  .head p { margin: 0; color: var(--muted-foreground); max-width: 56ch; }
+
+  .theme-switch { display: inline-flex; background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-full); padding: 3px; gap: 2px; flex: none; }
+  .theme-switch button { appearance: none; border: 0; background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 30px; border-radius: var(--radius-full); color: var(--muted-foreground); transition: all var(--duration-fast) var(--ease-standard); }
+  .theme-switch button svg { width: 15px; height: 15px; }
+  .theme-switch button[aria-pressed="true"] { background: var(--surface); color: var(--foreground); box-shadow: var(--elevation-1); }
+
+  /* Launcher cards */
+  .launchers { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); }
+  .launch { text-align: left; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); box-shadow: var(--elevation-1); padding: var(--space-6); cursor: pointer; display: flex; flex-direction: column; gap: var(--space-4); transition: transform var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard); }
+  .launch:hover { transform: translateY(-3px); box-shadow: var(--elevation-3); border-color: var(--outline-strong); }
+  .launch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .launch .top { display: flex; align-items: center; justify-content: space-between; }
+  .launch .ico { width: 44px; height: 44px; border-radius: var(--radius-lg); display: grid; place-items: center; }
+  .launch .ico svg { width: 22px; height: 22px; }
+  .launch h3 { margin: 0 0 4px; font-size: var(--text-title-size); font-weight: 600; }
+  .launch p { margin: 0; font-size: var(--text-body-size); color: var(--muted-foreground); line-height: 1.5; }
+  .launch .open-hint { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-label-size); font-weight: 600; color: var(--primary); }
+  .launch .open-hint svg { width: 15px; height: 15px; transition: transform var(--duration-fast) var(--ease-standard); }
+  .launch:hover .open-hint svg { transform: translateX(3px); }
+
+  .ico.blue { background: var(--primary-subtle); color: var(--primary); }
+  .ico.violet { background: var(--secondary-container); color: var(--secondary); }
+  .ico.amber { background: var(--warning-container); color: var(--on-warning-container); }
+  .ico.red { background: var(--destructive-container); color: var(--on-destructive-container); }
+
+  .sec-label { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-12) 0 var(--space-5); }
+  .sec-label span { font-size: var(--text-overline-size); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--subtle-foreground); }
+  .sec-label .line { flex: 1; height: 1px; background: var(--outline); }
+
+  /* Dialog shared bits */
+  .dlg-head { padding: var(--space-6) var(--space-6) var(--space-4); }
+  .dlg-head .row-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
+  .dlg-icon { width: 44px; height: 44px; border-radius: var(--radius-lg); display: grid; place-items: center; flex: none; }
+  .dlg-icon svg { width: 22px; height: 22px; }
+  .dlg-head h2 { margin: 0 0 6px; }
+  .dlg-head p { margin: 0; color: var(--muted-foreground); font-size: var(--text-body-size); line-height: 1.5; }
+  .dlg-body { padding: 0 var(--space-6) var(--space-5); }
+  .dlg-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--outline); background: var(--surface-variant); border-radius: 0 0 var(--radius-2xl) var(--radius-2xl); }
+  .dlg-foot.spread { justify-content: space-between; }
+
+  /* Format picker */
+  .fmt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .fmt { text-align: left; background: var(--surface); border: 1.5px solid var(--outline); border-radius: var(--radius-lg); padding: var(--space-4); cursor: pointer; transition: all var(--duration-fast) var(--ease-standard); display: flex; flex-direction: column; gap: 10px; }
+  .fmt:hover { border-color: var(--outline-strong); background: var(--surface-variant); }
+  .fmt:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .fmt.sel { border-color: var(--primary); background: var(--primary-subtle); }
+  .fmt .fmt-top { display: flex; align-items: center; justify-content: space-between; }
+  .fmt .fmt-name { font-size: var(--text-label-size); font-weight: 600; }
+  .fmt .fmt-desc { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+  .fmt .check-pip { width: 18px; height: 18px; border-radius: var(--radius-full); border: 1.5px solid var(--outline-strong); display: grid; place-items: center; flex: none; transition: all var(--duration-fast) var(--ease-spring); }
+  .fmt.sel .check-pip { background: var(--primary); border-color: var(--primary); }
+  .fmt .check-pip svg { width: 11px; height: 11px; color: var(--on-primary); opacity: 0; transform: scale(0.4); transition: all var(--duration-fast) var(--ease-spring); }
+  .fmt.sel .check-pip svg { opacity: 1; transform: scale(1); }
+  .fmt .mini { font-family: var(--font-mono); font-size: 10px; line-height: 1.5; color: var(--muted-foreground); background: var(--surface-sunken); border: 1px solid var(--outline-subtle); border-radius: var(--radius-sm); padding: 7px 9px; overflow: hidden; white-space: pre; }
+  .fmt .mini .k { color: var(--secondary); }
+  .fmt .mini .v { color: var(--primary); }
+
+  .preview-pane { margin-top: var(--space-4); border: 1px solid var(--outline); border-radius: var(--radius-lg); overflow: hidden; }
+  .preview-pane .pp-head { display: flex; align-items: center; justify-content: space-between; padding: 9px var(--space-4); background: var(--surface-variant); border-bottom: 1px solid var(--outline); }
+  .preview-pane .pp-head .t { font-size: var(--text-caption-size); font-weight: 600; }
+  .preview-pane .pp-head .dots { display: flex; gap: 5px; }
+  .preview-pane .pp-head .dots i { width: 9px; height: 9px; border-radius: var(--radius-full); background: var(--outline-strong); }
+  .preview-pane pre { margin: 0; padding: var(--space-4); font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7; color: var(--foreground); background: var(--surface-sunken); overflow-x: auto; max-height: 168px; }
+  .preview-pane pre .k { color: var(--secondary); }
+  .preview-pane pre .s { color: var(--success); }
+  .preview-pane pre .n { color: var(--primary); }
+  .preview-pane pre .c { color: var(--subtle-foreground); }
+
+  .opt-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--outline-subtle); }
+  .opt-row:last-child { border-bottom: 0; }
+  .opt-row .ol b { display: block; font-size: var(--text-label-size); font-weight: 600; }
+  .opt-row .ol span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  /* Share */
+  .link-box { display: flex; align-items: center; gap: var(--space-2); background: var(--surface-sunken); border: 1px solid var(--outline-strong); border-radius: var(--radius-md); padding: 5px 5px 5px var(--space-3); }
+  .link-box .url { flex: 1; font-family: var(--font-mono); font-size: var(--text-caption-size); color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .collab { display: flex; align-items: center; gap: var(--space-3); padding: 9px 0; }
+  .collab .meta { flex: 1; min-width: 0; }
+  .collab .meta b { display: block; font-size: var(--text-label-size); font-weight: 600; }
+  .collab .meta span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+  .role-sel { position: relative; }
+  .role-sel select { height: 32px; font-size: var(--text-caption-size); padding: 0 30px 0 12px; }
+
+  /* Upload */
+  .up-list { display: flex; flex-direction: column; gap: var(--space-3); }
+  .up-item { display: flex; align-items: center; gap: var(--space-3); }
+  .up-thumb { width: 40px; height: 40px; border-radius: var(--radius-md); flex: none; background-size: cover; background-position: center; border: 1px solid var(--outline); position: relative; overflow: hidden; }
+  .up-thumb .tick { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--success) 88%, transparent); opacity: 0; transition: opacity var(--duration-base) var(--ease-standard); }
+  .up-thumb .tick svg { width: 18px; height: 18px; color: #fff; }
+  .up-item.done .up-thumb .tick { opacity: 1; }
+  .up-mid { flex: 1; min-width: 0; }
+  .up-mid .nm { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: 6px; }
+  .up-mid .nm b { font-size: var(--text-caption-size); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .up-mid .nm span { font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); flex: none; }
+  .dropzone { border: 1.5px dashed var(--outline-strong); border-radius: var(--radius-lg); padding: var(--space-8); text-align: center; background: var(--surface-sunken); transition: all var(--duration-base) var(--ease-standard); }
+  .dropzone.drag { border-color: var(--primary); background: var(--primary-subtle); }
+  .dropzone .dz-ico { width: 48px; height: 48px; border-radius: var(--radius-lg); background: var(--primary-subtle); color: var(--primary); display: grid; place-items: center; margin: 0 auto var(--space-4); }
+  .dropzone .dz-ico svg { width: 24px; height: 24px; }
+
+  /* Toast */
+  .toast-wrap { position: fixed; bottom: var(--space-6); right: var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); z-index: var(--z-toast); }
+  .toast { display: flex; align-items: flex-start; gap: var(--space-3); width: 340px; background: var(--surface); border: 1px solid var(--outline); border-left-width: 3px; border-radius: var(--radius-lg); box-shadow: var(--elevation-4); padding: var(--space-4); transform: translateX(120%); opacity: 0; transition: all var(--duration-slow) var(--ease-spring); }
+  .toast.show { transform: none; opacity: 1; }
+  .toast.success { border-left-color: var(--success); }
+  .toast.error { border-left-color: var(--destructive); }
+  .toast .ti { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+  .toast.success .ti { color: var(--success); }
+  .toast.error .ti { color: var(--destructive); }
+  .toast .tc b { display: block; font-size: var(--text-label-size); font-weight: 600; margin-bottom: 2px; }
+  .toast .tc p { margin: 0; font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  @media (max-width: 760px) {
+    .launchers { grid-template-columns: 1fr; }
+    .fmt-grid { grid-template-columns: 1fr; }
+    .head { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div>
+      <div class="crumbs"><a href="index.html">Annotation Studio</a><span>›</span><a href="Components.html">Design System</a><span>›</span><b style="color:var(--foreground)">Modals &amp; Flows</b></div>
+      <h1 class="t-headline">Modals &amp; Flows</h1>
+      <p>The four critical decision points in the product — export, share, destructive confirm, and upload. Each opens a real, keyboard-accessible dialog built only from system tokens and primitives. Press <kbd class="key">Esc</kbd> to dismiss.</p>
+    </div>
+    <div class="theme-switch" role="group" aria-label="Theme">
+      <button data-theme-btn="light" aria-pressed="false" title="Light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      <button data-theme-btn="dark" aria-pressed="false" title="Dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <button data-theme-btn="system" aria-pressed="false" title="System"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+    </div>
+  </div>
+
+  <div class="launchers">
+    <button class="launch" id="lx-export">
+      <div class="top">
+        <div class="ico blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>
+        <span class="badge badge-neutral">⌘E</span>
+      </div>
+      <div><h3>Export dataset</h3><p>Format picker with a live preview of the exact file structure — COCO, YOLO, Pascal VOC, CreateML.</p></div>
+      <span class="open-hint">Open flow <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </button>
+
+    <button class="launch" id="lx-share">
+      <div class="top">
+        <div class="ico violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></div>
+        <div class="avatar-stack"><span class="avatar xs" style="background:var(--primary-container)">JD</span><span class="avatar xs" style="background:var(--secondary-container);color:var(--on-secondary-container)">MK</span><span class="avatar xs" style="background:var(--success-container);color:var(--on-success-container)">+3</span></div>
+      </div>
+      <div><h3>Share project</h3><p>Invite collaborators by role, copy a secure link, and manage general access — all in one sheet.</p></div>
+      <span class="open-hint">Open flow <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </button>
+
+    <button class="launch" id="lx-upload">
+      <div class="top">
+        <div class="ico amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+        <span class="badge badge-warning"><span class="dot"></span>Live</span>
+      </div>
+      <div><h3>Upload progress</h3><p>Drag-drop zone that transitions into per-file progress bars with completion ticks. Watch it run.</p></div>
+      <span class="open-hint">Open flow <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </button>
+
+    <button class="launch" id="lx-delete">
+      <div class="top">
+        <div class="ico red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg></div>
+        <span class="badge badge-destructive"><span class="dot"></span>Destructive</span>
+      </div>
+      <div><h3>Delete confirm</h3><p>Type-to-confirm guard for irreversible actions. The primary button stays disabled until the name matches.</p></div>
+      <span class="open-hint">Open flow <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </button>
+  </div>
+
+  <div class="sec-label"><span>Implementation notes</span><div class="line"></div></div>
+  <div class="card card-pad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-6)">
+    <div><div class="row" style="gap:8px;margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><b class="t-label">Focus trapped</b></div><p class="t-caption" style="margin:0">Tab cycles within the open dialog; focus returns to the trigger on close.</p></div>
+    <div><div class="row" style="gap:8px;margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><b class="t-label">Scrim + emphasized</b></div><p class="t-caption" style="margin:0">Backdrop fades at 200ms; dialog scales in on the emphasized curve. Reduced-motion safe.</p></div>
+    <div><div class="row" style="gap:8px;margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><b class="t-label">Token-driven</b></div><p class="t-caption" style="margin:0">Zero hardcoded color or spacing — every value resolves through the system contract.</p></div>
+  </div>
+</div>
+
+<!-- ============ EXPORT DIALOG ============ -->
+<div class="scrim" id="exportScrim" role="dialog" aria-modal="true" aria-labelledby="exportTitle" hidden>
+  <div class="dialog" style="max-width:560px">
+    <div class="dlg-head">
+      <div class="row-top">
+        <div class="dlg-icon" style="background:var(--primary-container);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>
+        <button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <h2 id="exportTitle" class="t-title-lg">Export dataset</h2>
+      <p>Bundling <b style="color:var(--foreground)">2,030</b> labeled images and <b style="color:var(--foreground)">8,412</b> annotations across <b style="color:var(--foreground)">6</b> classes.</p>
+    </div>
+    <div class="dlg-body">
+      <div class="t-overline" style="color:var(--subtle-foreground);margin-bottom:10px">Format</div>
+      <div class="fmt-grid" id="fmtGrid"></div>
+
+      <div class="preview-pane">
+        <div class="pp-head"><span class="t" id="ppName">COCO JSON</span><span class="dots"><i></i><i></i><i></i></span></div>
+        <pre id="ppBody"></pre>
+      </div>
+
+      <div style="margin-top:var(--space-2)">
+        <div class="opt-row">
+          <div class="ol"><b>Include image files</b><span>Zip the source images alongside annotations (+1.2 GB)</span></div>
+          <label class="switch"><input type="checkbox" checked /><span class="track"><span class="thumb"></span></span></label>
+        </div>
+        <div class="opt-row">
+          <div class="ol"><b>Split train / val / test</b><span>70 / 20 / 10 with a stratified class balance</span></div>
+          <label class="switch"><input type="checkbox" /><span class="track"><span class="thumb"></span></span></label>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-foot spread">
+      <span class="t-caption mono" id="expSize">~1.4 GB · .zip</span>
+      <div class="row" style="gap:var(--space-3)">
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="expGo"><span class="btn-label" style="display:inline-flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</span><span class="spinner" hidden></span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SHARE DIALOG ============ -->
+<div class="scrim" id="shareScrim" role="dialog" aria-modal="true" aria-labelledby="shareTitle" hidden>
+  <div class="dialog" style="max-width:500px">
+    <div class="dlg-head">
+      <div class="row-top">
+        <div class="dlg-icon" style="background:var(--secondary-container);color:var(--secondary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></div>
+        <button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <h2 id="shareTitle" class="t-title-lg">Share “Traffic Cameras”</h2>
+      <p>Invite teammates to label, review, or view this project.</p>
+    </div>
+    <div class="dlg-body">
+      <div class="row" style="gap:var(--space-2);margin-bottom:var(--space-5)">
+        <div class="input-group" style="flex:1">
+          <svg class="lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          <input class="input" placeholder="Email or name…" aria-label="Invite by email" />
+        </div>
+        <div class="select-wrap role-sel"><select class="select-native" aria-label="Invite role"><option>Can label</option><option>Can review</option><option>Can view</option></select></div>
+        <button class="btn btn-primary">Invite</button>
+      </div>
+
+      <div class="t-overline" style="color:var(--subtle-foreground);margin-bottom:var(--space-2)">People with access</div>
+      <div class="collab">
+        <span class="avatar sm" style="background:var(--primary-container)">JD</span>
+        <div class="meta"><b>Jordan Diaz <span class="badge badge-primary" style="margin-left:4px">You</span></b><span>jordan@studio.io</span></div>
+        <span class="t-caption" style="color:var(--muted-foreground)">Owner</span>
+      </div>
+      <div class="collab">
+        <span class="avatar sm" style="background:var(--secondary-container);color:var(--on-secondary-container)">MK</span>
+        <div class="meta"><b>Mara Köhler</b><span>mara@studio.io</span></div>
+        <div class="select-wrap role-sel"><select class="select-native" aria-label="Mara's role"><option>Can label</option><option selected>Can review</option><option>Can view</option><option>Remove</option></select></div>
+      </div>
+      <div class="collab">
+        <span class="avatar sm" style="background:var(--success-container);color:var(--on-success-container)">AP</span>
+        <div class="meta"><b>Arjun Patel</b><span>arjun@studio.io</span></div>
+        <div class="select-wrap role-sel"><select class="select-native" aria-label="Arjun's role"><option selected>Can label</option><option>Can review</option><option>Can view</option><option>Remove</option></select></div>
+      </div>
+    </div>
+    <div class="dlg-foot spread">
+      <div class="link-box" style="flex:1;max-width:280px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+        <span class="url">studio.io/p/traffic-cams?k=9f2…</span>
+        <button class="btn btn-secondary btn-sm" id="copyLink">Copy</button>
+      </div>
+      <button class="btn btn-primary" data-close>Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DELETE CONFIRM ============ -->
+<div class="scrim" id="deleteScrim" role="alertdialog" aria-modal="true" aria-labelledby="deleteTitle" hidden>
+  <div class="dialog" style="max-width:440px">
+    <div class="dlg-head">
+      <div class="dlg-icon" style="background:var(--destructive-container);color:var(--destructive);margin-bottom:var(--space-4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg></div>
+      <h2 id="deleteTitle" class="t-title-lg">Delete “Traffic Cameras”?</h2>
+      <p>This permanently removes <b style="color:var(--foreground)">2,030 images</b> and <b style="color:var(--foreground)">8,412 annotations</b>. This action cannot be undone.</p>
+    </div>
+    <div class="dlg-body">
+      <div class="field">
+        <label for="delConfirm">Type <b class="mono" style="color:var(--destructive)">Traffic Cameras</b> to confirm</label>
+        <input class="input" id="delConfirm" placeholder="Traffic Cameras" autocomplete="off" />
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-destructive" id="delGo" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>Delete project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ UPLOAD DIALOG ============ -->
+<div class="scrim" id="uploadScrim" role="dialog" aria-modal="true" aria-labelledby="uploadTitle" hidden>
+  <div class="dialog" style="max-width:500px">
+    <div class="dlg-head">
+      <div class="row-top">
+        <div class="dlg-icon" style="background:var(--warning-container);color:var(--on-warning-container)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+        <button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <h2 id="uploadTitle" class="t-title-lg">Upload images</h2>
+      <p id="upSub">Drop a folder of images, or browse to select.</p>
+    </div>
+    <div class="dlg-body">
+      <div class="dropzone" id="dropzone">
+        <div class="dz-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+        <div class="t-label" style="font-weight:600;margin-bottom:4px">Drag &amp; drop images here</div>
+        <div class="t-caption">JPG, PNG, WebP up to 50 MB · or <span style="color:var(--primary);font-weight:600;cursor:pointer">browse files</span></div>
+      </div>
+      <div class="up-list" id="upList" hidden></div>
+    </div>
+    <div class="dlg-foot spread">
+      <span class="t-caption mono" id="upStat">5 files · 18.4 MB</span>
+      <div class="row" style="gap:var(--space-3)">
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-primary" id="upGo">Start upload</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+  /* ---------- Dialog plumbing with focus trap ---------- */
+  let lastFocus = null;
+  function openScrim(id) {
+    const s = $("#" + id);
+    lastFocus = document.activeElement;
+    s.hidden = false;
+    void s.offsetWidth; // commit initial state so the transition plays without rAF
+    s.classList.add("open");
+    const focusable = s.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    setTimeout(() => { const first = [...focusable].find(el => !el.disabled && el.offsetParent !== null); first && first.focus(); }, 60);
+  }
+  function closeScrim(id) {
+    const s = $("#" + id);
+    s.classList.remove("open");
+    setTimeout(() => { s.hidden = true; lastFocus && lastFocus.focus(); }, 240);
+  }
+  $$(".scrim").forEach(s => {
+    s.addEventListener("click", e => { if (e.target === s) closeScrim(s.id); });
+    s.addEventListener("keydown", e => {
+      if (e.key === "Escape") { closeScrim(s.id); return; }
+      if (e.key === "Tab") {
+        const f = [...s.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])')].filter(el => el.offsetParent !== null);
+        if (!f.length) return;
+        const first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+  });
+  $$("[data-close]").forEach(b => b.addEventListener("click", () => closeScrim(b.closest(".scrim").id)));
+
+  $("#lx-export").addEventListener("click", () => openScrim("exportScrim"));
+  $("#lx-share").addEventListener("click", () => openScrim("shareScrim"));
+  $("#lx-delete").addEventListener("click", () => { $("#delConfirm").value = ""; checkDelete(); openScrim("deleteScrim"); });
+  $("#lx-upload").addEventListener("click", () => { resetUpload(); openScrim("uploadScrim"); });
+
+  /* ---------- Toasts ---------- */
+  function toast(kind, title, msg) {
+    const t = document.createElement("div");
+    t.className = "toast " + kind;
+    const icon = kind === "success"
+      ? '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>'
+      : '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>';
+    t.innerHTML = `<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><div class="tc"><b>${title}</b><p>${msg}</p></div>`;
+    $("#toastWrap").appendChild(t);
+    requestAnimationFrame(() => t.classList.add("show"));
+    setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 360); }, 3600);
+  }
+
+  /* ---------- Export: format previews ---------- */
+  const formats = [
+    { n: "COCO JSON", d: "Single .json", size: "~1.4 GB · .zip",
+      mini: '{ <span class="k">"images"</span>: […]', 
+      body: `<span class="c">// instances.json</span>
+{
+  <span class="k">"images"</span>: [
+    { <span class="k">"id"</span>: <span class="n">1</span>, <span class="k">"file_name"</span>: <span class="s">"cam_0001.jpg"</span>,
+      <span class="k">"width"</span>: <span class="n">1920</span>, <span class="k">"height"</span>: <span class="n">1080</span> }
+  ],
+  <span class="k">"annotations"</span>: [
+    { <span class="k">"id"</span>: <span class="n">1</span>, <span class="k">"image_id"</span>: <span class="n">1</span>,
+      <span class="k">"category_id"</span>: <span class="n">3</span>,
+      <span class="k">"bbox"</span>: [<span class="n">410</span>,<span class="n">230</span>,<span class="n">180</span>,<span class="n">240</span>] }
+  ],
+  <span class="k">"categories"</span>: [
+    { <span class="k">"id"</span>: <span class="n">3</span>, <span class="k">"name"</span>: <span class="s">"car"</span> }
+  ]
+}` },
+    { n: "YOLO v8", d: ".txt + data.yaml", size: "~1.3 GB · .zip",
+      mini: '<span class="k">class</span> cx cy w h',
+      body: `<span class="c"># labels/cam_0001.txt</span>
+<span class="c"># class  x_center  y_center  width  height</span>
+<span class="n">2</span>  <span class="n">0.273</span>  <span class="n">0.324</span>  <span class="n">0.094</span>  <span class="n">0.222</span>
+<span class="n">0</span>  <span class="n">0.612</span>  <span class="n">0.488</span>  <span class="n">0.140</span>  <span class="n">0.301</span>
+
+<span class="c"># data.yaml</span>
+<span class="k">names</span>:
+  <span class="n">0</span>: <span class="s">person</span>
+  <span class="n">2</span>: <span class="s">car</span>
+<span class="k">nc</span>: <span class="n">6</span>` },
+    { n: "Pascal VOC", d: "XML per image", size: "~1.5 GB · .zip",
+      mini: '&lt;<span class="k">annotation</span>&gt;',
+      body: `<span class="c">&lt;!-- cam_0001.xml --&gt;</span>
+&lt;<span class="k">annotation</span>&gt;
+  &lt;<span class="k">filename</span>&gt;<span class="s">cam_0001.jpg</span>&lt;/<span class="k">filename</span>&gt;
+  &lt;<span class="k">size</span>&gt;
+    &lt;<span class="k">width</span>&gt;<span class="n">1920</span>&lt;/<span class="k">width</span>&gt;
+    &lt;<span class="k">height</span>&gt;<span class="n">1080</span>&lt;/<span class="k">height</span>&gt;
+  &lt;/<span class="k">size</span>&gt;
+  &lt;<span class="k">object</span>&gt;
+    &lt;<span class="k">name</span>&gt;<span class="s">car</span>&lt;/<span class="k">name</span>&gt;
+    &lt;<span class="k">bndbox</span>&gt;
+      &lt;<span class="k">xmin</span>&gt;<span class="n">410</span>&lt;/<span class="k">xmin</span>&gt;
+      &lt;<span class="k">ymin</span>&gt;<span class="n">230</span>&lt;/<span class="k">ymin</span>&gt;
+    &lt;/<span class="k">bndbox</span>&gt;
+  &lt;/<span class="k">object</span>&gt;
+&lt;/<span class="k">annotation</span>&gt;` },
+    { n: "CreateML", d: "Apple Vision", size: "~1.4 GB · .zip",
+      mini: '[ { <span class="k">"image"</span> } ]',
+      body: `<span class="c">// annotations.json</span>
+[
+  {
+    <span class="k">"image"</span>: <span class="s">"cam_0001.jpg"</span>,
+    <span class="k">"annotations"</span>: [
+      {
+        <span class="k">"label"</span>: <span class="s">"car"</span>,
+        <span class="k">"coordinates"</span>: {
+          <span class="k">"x"</span>: <span class="n">500</span>, <span class="k">"y"</span>: <span class="n">350</span>,
+          <span class="k">"width"</span>: <span class="n">180</span>, <span class="k">"height"</span>: <span class="n">240</span>
+        }
+      }
+    ]
+  }
+]` },
+  ];
+  let fmtSel = 0;
+  function renderFormats() {
+    const grid = $("#fmtGrid"); grid.innerHTML = "";
+    formats.forEach((f, i) => {
+      const b = document.createElement("button");
+      b.className = "fmt" + (i === fmtSel ? " sel" : "");
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", i === fmtSel ? "true" : "false");
+      b.innerHTML = `<div class="fmt-top"><span class="fmt-name">${f.n}</span><span class="check-pip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span></div><div class="fmt-desc">${f.d}</div><div class="mini">${f.mini}</div>`;
+      b.addEventListener("click", () => { fmtSel = i; renderFormats(); renderPreview(); });
+      grid.appendChild(b);
+    });
+  }
+  function renderPreview() {
+    const f = formats[fmtSel];
+    $("#ppName").textContent = f.n;
+    $("#ppBody").innerHTML = f.body;
+    $("#expSize").textContent = f.size;
+  }
+  renderFormats(); renderPreview();
+  $("#expGo").addEventListener("click", () => {
+    const btn = $("#expGo");
+    btn.querySelector(".btn-label").style.opacity = "0";
+    btn.querySelector(".spinner").hidden = false;
+    btn.setAttribute("aria-disabled", "true");
+    setTimeout(() => {
+      btn.querySelector(".btn-label").style.opacity = "1";
+      btn.querySelector(".spinner").hidden = true;
+      btn.removeAttribute("aria-disabled");
+      closeScrim("exportScrim");
+      toast("success", "Export ready", `${formats[fmtSel].n} · ${formats[fmtSel].size.split(" · ")[0]} prepared for download.`);
+    }, 1400);
+  });
+
+  /* ---------- Share ---------- */
+  $("#copyLink").addEventListener("click", () => { $("#copyLink").textContent = "Copied!"; toast("success", "Link copied", "Anyone with the link and a passcode can view."); setTimeout(() => $("#copyLink").textContent = "Copy", 1600); });
+
+  /* ---------- Delete confirm ---------- */
+  const PHRASE = "Traffic Cameras";
+  function checkDelete() {
+    const ok = $("#delConfirm").value.trim() === PHRASE;
+    $("#delGo").setAttribute("aria-disabled", ok ? "false" : "true");
+  }
+  $("#delConfirm").addEventListener("input", checkDelete);
+  $("#delGo").addEventListener("click", () => {
+    if ($("#delGo").getAttribute("aria-disabled") === "true") return;
+    closeScrim("deleteScrim");
+    toast("error", "Project deleted", "“Traffic Cameras” and all annotations were removed.");
+  });
+
+  /* ---------- Upload ---------- */
+  const upFiles = [
+    { n: "cam_0001.jpg", s: "3.8 MB", g: "linear-gradient(135deg,#3b4a66,#1f2a40)" },
+    { n: "cam_0002.jpg", s: "4.1 MB", g: "linear-gradient(135deg,#4a3b52,#2a1f33)" },
+    { n: "intersection_07.png", s: "5.2 MB", g: "linear-gradient(135deg,#3b5246,#1f3329)" },
+    { n: "night_run_14.jpg", s: "2.9 MB", g: "linear-gradient(135deg,#52473b,#332a1f)" },
+    { n: "overpass_22.webp", s: "2.4 MB", g: "linear-gradient(135deg,#3b4f52,#1f3033)" },
+  ];
+  let upTimer = null;
+  function resetUpload() {
+    if (upTimer) clearInterval(upTimer);
+    $("#dropzone").hidden = false;
+    $("#upList").hidden = true;
+    $("#upList").innerHTML = "";
+    $("#upSub").textContent = "Drop a folder of images, or browse to select.";
+    $("#upStat").textContent = `${upFiles.length} files · 18.4 MB`;
+    const go = $("#upGo"); go.textContent = "Start upload"; go.disabled = false; go.removeAttribute("aria-disabled");
+  }
+  function startUpload() {
+    $("#dropzone").hidden = true;
+    const list = $("#upList"); list.hidden = false; list.innerHTML = "";
+    $("#upSub").textContent = "Uploading… keep this window open.";
+    const go = $("#upGo"); go.disabled = true; go.textContent = "Uploading…";
+    const rows = upFiles.map((f, i) => {
+      const row = document.createElement("div");
+      row.className = "up-item";
+      row.innerHTML = `<div class="up-thumb" style="background:${f.g}"><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span></div>
+        <div class="up-mid"><div class="nm"><b>${f.n}</b><span class="pct">0%</span></div><div class="progress"><div class="bar" style="width:0%"></div></div></div>`;
+      list.appendChild(row);
+      return { row, bar: row.querySelector(".bar"), pct: row.querySelector(".pct"), p: 0, done: false, speed: 1.2 + Math.random() * 1.8, delay: i * 4 };
+    });
+    let tick = 0, completed = 0;
+    upTimer = setInterval(() => {
+      tick++;
+      let allDone = true;
+      rows.forEach(r => {
+        if (r.done) return;
+        if (tick < r.delay) { allDone = false; return; }
+        r.p = Math.min(100, r.p + r.speed);
+        r.bar.style.width = r.p + "%";
+        r.pct.textContent = Math.floor(r.p) + "%";
+        if (r.p >= 100) {
+          r.done = true; completed++;
+          r.row.classList.add("done");
+          r.bar.parentElement.classList.add("success");
+          r.pct.textContent = "Done";
+          r.pct.style.color = "var(--success)";
+          $("#upStat").textContent = `${completed} of ${upFiles.length} complete`;
+        } else { allDone = false; }
+      });
+      if (allDone) {
+        clearInterval(upTimer);
+        $("#upSub").textContent = "All files uploaded successfully.";
+        const go = $("#upGo"); go.disabled = false; go.textContent = "Done"; go.dataset.finish = "1";
+        toast("success", "Upload complete", `${upFiles.length} images added to “Traffic Cameras”.`);
+      }
+    }, 90);
+  }
+  $("#upGo").addEventListener("click", () => {
+    const go = $("#upGo");
+    if (go.dataset.finish) { delete go.dataset.finish; closeScrim("uploadScrim"); return; }
+    startUpload();
+  });
+  // dropzone affordance
+  const dz = $("#dropzone");
+  ["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("drag"); if (ev === "drop") startUpload(); }));
+  dz.addEventListener("click", startUpload);
+
+  /* ---------- Global Esc + ⌘E ---------- */
+  document.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      if ($("#exportScrim").hidden) openScrim("exportScrim");
+    }
+  });
+</script>
+</body>
+</html>

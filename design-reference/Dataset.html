@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Dataset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  body { height: 100vh; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 248px 1fr; height: 100vh; }
+  .sidebar { background: var(--surface); border-right: 1px solid var(--outline); display: flex; flex-direction: column; padding: var(--space-4) var(--space-3); overflow-y: auto; }
+  .brand { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2) var(--space-5); }
+  .brand-mark { width: 32px; height: 32px; flex: none; }
+  .brand-name b { font-weight: 600; letter-spacing: -0.01em; display: block; font-size: var(--text-label-size); white-space: nowrap; }
+  .brand-name span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+  .nav { display: flex; flex-direction: column; gap: 1px; }
+  .nav a { display: flex; align-items: center; gap: 11px; padding: 8px var(--space-3); border-radius: var(--radius-md); color: var(--muted-foreground); text-decoration: none; font-size: var(--text-label-size); font-weight: 500; transition: all var(--duration-fast) var(--ease-standard); }
+  .nav a svg { width: 18px; height: 18px; flex: none; }
+  .nav a:hover { background: var(--surface-variant); color: var(--foreground); }
+  .nav a.active { background: var(--primary-subtle); color: var(--primary); }
+  .nav-group { margin: var(--space-5) var(--space-3) var(--space-2); font-size: 11px; font-weight: 600; color: var(--subtle-foreground); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sidebar-foot { margin-top: auto; padding-top: var(--space-4); }
+  .userbox { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); cursor: pointer; }
+  .userbox:hover { background: var(--surface-variant); }
+  .userbox .meta { flex: 1; min-width: 0; }
+  .userbox .meta b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+  .userbox .meta span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  .main { overflow-y: auto; display: flex; flex-direction: column; }
+  .topbar { position: sticky; top: 0; z-index: var(--z-sticky); background: color-mix(in srgb, var(--background) 88%, transparent); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--outline-subtle); }
+  .topbar .row1 { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-8) var(--space-2); }
+  .crumb { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-label-size); color: var(--muted-foreground); white-space: nowrap; }
+  .crumb a { color: var(--muted-foreground); text-decoration: none; font-weight: 500; } .crumb a:hover { color: var(--foreground); }
+  .crumb b { color: var(--foreground); font-weight: 600; }
+  .topbar h1 { font-size: var(--text-headline-size); font-weight: 600; letter-spacing: -0.018em; margin: 0; padding: 0 var(--space-8); }
+  .topbar .meta-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-8) 0; color: var(--muted-foreground); font-size: var(--text-label-size); }
+  .topbar .meta-row .vsep { width: 1px; height: 14px; background: var(--outline); }
+  .topbar .meta-row .mono { color: var(--foreground); }
+
+  .tabsrow { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-4) var(--space-8) 0; border-bottom: 1px solid var(--outline); }
+  .tab-u { appearance: none; border: 0; background: transparent; cursor: pointer; padding: 10px 2px 14px; font: inherit; font-size: var(--text-label-size); font-weight: 600; color: var(--muted-foreground); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all var(--duration-fast) var(--ease-standard); display: flex; align-items: center; gap: 7px; }
+  .tab-u:hover { color: var(--foreground); }
+  .tab-u[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+
+  .content { padding: var(--space-6) var(--space-8) var(--space-12); flex: 1; }
+
+  /* Upload zone */
+  .upload { border: 1.5px dashed var(--outline-strong); border-radius: var(--radius-xl); padding: var(--space-6); display: flex; align-items: center; gap: var(--space-5); margin-bottom: var(--space-6); background: var(--surface); transition: border-color var(--duration-base) var(--ease-standard), background var(--duration-base) var(--ease-standard); cursor: pointer; }
+  .upload:hover, .upload.drag { border-color: var(--primary); background: var(--primary-subtle); }
+  .upload .ic { width: 52px; height: 52px; border-radius: var(--radius-lg); background: var(--primary-container); color: var(--primary); display: grid; place-items: center; flex: none; transition: transform var(--duration-base) var(--ease-spring); }
+  .upload:hover .ic { transform: translateY(-2px) scale(1.04); }
+  .upload .ic svg { width: 24px; height: 24px; }
+  .upload .txt { flex: 1; }
+  .upload .txt b { font-size: var(--text-title-size); font-weight: 600; }
+  .upload .txt p { margin: 3px 0 0; color: var(--muted-foreground); font-size: var(--text-body-size); }
+
+  /* Toolbar */
+  .galbar { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); position: sticky; top: 0; }
+  .galbar .grow { flex: 1; }
+  .searchbar { position: relative; width: 240px; }
+  .searchbar svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--subtle-foreground); }
+  .searchbar input { width: 100%; height: 36px; padding: 0 12px 0 34px; background: var(--surface); border: 1px solid var(--input-border); border-radius: var(--radius-md); font: inherit; font-size: var(--text-body-size); color: var(--foreground); }
+  .searchbar input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
+
+  /* Gallery */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-4); }
+  .imgcard { position: relative; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--outline); background: var(--surface); cursor: pointer; box-shadow: var(--elevation-1); transition: transform var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard); }
+  .imgcard:hover { transform: translateY(-2px); box-shadow: var(--elevation-3); }
+  .imgcard.sel { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .imgcard .thumb { aspect-ratio: 4 / 3; position: relative; }
+  .imgcard .thumb .scene { position: absolute; inset: 0; }
+  .imgcard .thumb .ov { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.15) 0%, transparent 30%, transparent 65%, rgba(0,0,0,.45)); }
+  /* mini bounding boxes */
+  .imgcard .mini { position: absolute; border: 1.5px solid var(--bc); border-radius: 1px; }
+  .imgcard .mini::after { content:""; position:absolute; inset:0; background: var(--bc); opacity: .18; }
+  .imgcard .checkbox { position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; border-radius: var(--radius-xs); border: 2px solid #fff; background: rgba(0,0,0,.3); backdrop-filter: blur(3px); display: grid; place-items: center; opacity: 0; transition: opacity var(--duration-fast); z-index: 2; }
+  .imgcard:hover .checkbox, .imgcard.sel .checkbox { opacity: 1; }
+  .imgcard.sel .checkbox { background: var(--primary); border-color: var(--primary); }
+  .imgcard.sel .checkbox svg { opacity: 1; }
+  .imgcard .checkbox svg { width: 12px; height: 12px; color: #fff; opacity: 0; }
+  .imgcard .statedot { position: absolute; top: 8px; right: 8px; z-index: 2; }
+  .imgcard .info { position: absolute; left: 8px; right: 8px; bottom: 7px; display: flex; align-items: center; justify-content: space-between; z-index: 2; }
+  .imgcard .info .fn { font-size: 11px; font-family: var(--font-mono); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  .imgcard .info .cnt { font-size: 11px; font-weight: 600; color: #fff; background: rgba(0,0,0,.4); backdrop-filter: blur(3px); padding: 1px 6px; border-radius: var(--radius-full); }
+
+  /* Bulk action bar */
+  .bulkbar { position: fixed; bottom: var(--space-6); left: 50%; transform: translateX(-50%) translateY(120%); background: var(--surface-inverse); color: var(--on-surface-inverse); border-radius: var(--radius-full); box-shadow: var(--elevation-5); display: flex; align-items: center; gap: var(--space-2); padding: 8px 8px 8px var(--space-5); z-index: var(--z-toast); transition: transform var(--duration-slow) var(--ease-emphasized); }
+  .bulkbar.show { transform: translateX(-50%) translateY(0); }
+  .bulkbar .ct { font-size: var(--text-label-size); font-weight: 600; }
+  .bulkbar .vsep { width: 1px; height: 22px; background: rgba(255,255,255,.18); margin: 0 4px; }
+  .bulkbar button { appearance: none; border: 0; cursor: pointer; background: transparent; color: inherit; font: inherit; font-size: var(--text-label-size); font-weight: 500; padding: 8px 12px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 7px; transition: background var(--duration-fast); }
+  .bulkbar button:hover { background: rgba(255,255,255,.12); }
+  .bulkbar button svg { width: 15px; height: 15px; }
+  .bulkbar .prim { background: var(--primary); color: var(--on-primary); }
+  .bulkbar .prim:hover { background: var(--primary-hover); }
+  .bulkbar .close { width: 32px; height: 32px; padding: 0; justify-content: center; }
+
+  @media (max-width: 880px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .content, .topbar h1, .topbar .row1, .topbar .meta-row, .tabsrow { padding-left: var(--space-5); padding-right: var(--space-5); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+        <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="var(--on-primary)" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+        <rect x="6" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+        <rect x="6" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+      </svg>
+      <div class="brand-name"><b>Annotation Studio</b><span>Acme Vision</span></div>
+    </div>
+    <nav class="nav">
+      <a href="Dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Projects</a>
+      <a href="#" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Datasets</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/></svg>Models<span class="badge badge-secondary" style="margin-left:auto">beta</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Exports</a>
+      <div class="nav-group">Workspace</div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/></svg>Team</a>
+      <a href="Settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 14H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 10 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 20.4 10H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="userbox">
+        <span class="avatar md" style="background:var(--blue-500);color:#fff">AM</span>
+        <div class="meta"><b>Ana Marquez</b><span>ana@acmevision.ai</span></div>
+        <button class="icon-btn sm" aria-label="Account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="row1">
+        <div class="crumb"><a href="Dashboard.html">Projects</a><span>›</span><b>Traffic — Q3 dashcam</b></div>
+        <div class="grow" style="flex:1"></div>
+        <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        <button class="btn btn-outline btn-sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</button>
+        <button class="btn btn-primary btn-sm" onclick="location.href='Annotation Workspace.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" stroke-dasharray="3 2.5"/></svg>Start labeling</button>
+      </div>
+      <h1>Traffic — Q3 dashcam</h1>
+      <div class="meta-row">
+        <span><span class="mono">2,480</span> images</span><span class="vsep"></span>
+        <span><span class="mono">6</span> classes</span><span class="vsep"></span>
+        <span><span class="mono">12,840</span> annotations</span><span class="vsep"></span>
+        <span class="badge badge-success" style="height:20px"><span class="dot"></span>82% labeled</span>
+      </div>
+      <div class="tabsrow" role="tablist">
+        <button class="tab-u" role="tab" aria-selected="true" data-f="all">All <span class="badge badge-neutral" style="height:18px">2480</span></button>
+        <button class="tab-u" role="tab" aria-selected="false" data-f="labeled">Labeled <span class="badge badge-success" style="height:18px">2032</span></button>
+        <button class="tab-u" role="tab" aria-selected="false" data-f="unlabeled">Unlabeled <span class="badge badge-neutral" style="height:18px">448</span></button>
+        <button class="tab-u" role="tab" aria-selected="false" data-f="review">In review <span class="badge badge-warning" style="height:18px">96</span></button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="upload" id="upload">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+        <div class="txt"><b>Drag &amp; drop images, or click to browse</b><p>JPG, PNG, WebP up to 50&nbsp;MB · or import from S3, GCS, or a URL list</p></div>
+        <button class="btn btn-tonal">Import from cloud</button>
+      </div>
+
+      <div class="galbar">
+        <div class="searchbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg><input placeholder="Filter by filename…" id="search"></div>
+        <button class="btn btn-outline btn-sm" id="selectAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg>Select all</button>
+        <div class="grow"></div>
+        <span class="t-caption" id="shown">Showing 24 of 2,480</span>
+        <div class="select-wrap"><select class="select-native" style="height:34px;font-size:var(--text-label-size)"><option>Newest first</option><option>Oldest first</option><option>Most annotations</option><option>Filename A–Z</option></select></div>
+      </div>
+
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk bar -->
+<div class="bulkbar" id="bulkbar">
+  <span class="ct"><span id="bulkCount">0</span> selected</span>
+  <span class="vsep"></span>
+  <button class="prim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" stroke-dasharray="3 2.5"/></svg>Label selected</button>
+  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Mark reviewed</button>
+  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Assign class</button>
+  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Delete</button>
+  <span class="vsep"></span>
+  <button class="close" id="bulkClose" aria-label="Clear selection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+</div>
+
+<div id="toastHost" style="position:fixed;bottom:90px;right:var(--space-6);z-index:var(--z-toast);display:flex;flex-direction:column;gap:10px;align-items:flex-end"></div>
+
+<script>
+  const $ = (s,r=document)=>r.querySelector(s); const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const scenes = ['linear-gradient(180deg,#2b3a55,#3d4a66 40%,#585c66 52%,#2a2d35)','linear-gradient(175deg,#33405c,#46506b 44%,#646a78 54%,#2f3138)','linear-gradient(180deg,#243149,#3a4862 42%,#5c6373 53%,#272a31)'];
+  const boxColors = ['#3b6af5','#10b981','#f59e0b','#8b5cf6'];
+
+  // generate 24 images
+  const states = ['labeled','labeled','labeled','review','unlabeled','labeled','labeled','review','unlabeled','labeled'];
+  const imgs = Array.from({length:24}, (_,i) => {
+    const st = i < 18 ? 'labeled' : (i < 21 ? 'review' : 'unlabeled');
+    const n = 400 + i;
+    return { id:i, fn:`frame_0${n}.jpg`, state:st, scene: scenes[i%3], count: st==='unlabeled'?0:(2+(i%5)) };
+  });
+  const stateDot = { labeled:'<span class="badge badge-success" style="height:20px"><span class="dot"></span>Labeled</span>', review:'<span class="badge badge-warning" style="height:20px"><span class="dot"></span>Review</span>', unlabeled:'<span class="badge badge-neutral" style="height:20px;background:rgba(0,0,0,.4);color:#fff;backdrop-filter:blur(3px);border-color:transparent">Unlabeled</span>' };
+
+  function miniBoxes(im) {
+    if (im.state === 'unlabeled') return '';
+    const layouts = [
+      [[18,52,30,28],[58,44,26,32]],
+      [[12,40,24,40],[44,48,30,30],[74,42,18,34]],
+      [[30,46,38,34]],
+    ];
+    const L = layouts[im.id % 3];
+    return L.map((b,i) => `<span class="mini" style="--bc:${boxColors[i%4]};left:${b[0]}%;top:${b[1]}%;width:${b[2]}%;height:${b[3]}%"></span>`).join('');
+  }
+
+  let selected = new Set();
+  let filter = 'all';
+  function render() {
+    const q = $("#search").value.toLowerCase();
+    const list = imgs.filter(im => (filter==='all'||im.state===filter) && im.fn.includes(q));
+    $("#gallery").innerHTML = list.map(im => `
+      <div class="imgcard ${selected.has(im.id)?'sel':''}" data-id="${im.id}">
+        <div class="thumb">
+          <div class="scene" style="background:${im.scene}"></div>
+          ${miniBoxes(im)}
+          <div class="ov"></div>
+          <div class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="statedot">${stateDot[im.state]}</div>
+          <div class="info"><span class="fn">${im.fn}</span>${im.count?`<span class="cnt">${im.count}</span>`:''}</div>
+        </div>
+      </div>`).join('');
+    $("#shown").textContent = `Showing ${list.length} of 2,480`;
+    $$(".imgcard").forEach(c => {
+      const id = +c.dataset.id;
+      c.querySelector(".checkbox").addEventListener("click", (e) => { e.stopPropagation(); toggle(id); });
+      c.addEventListener("click", (e) => { if (selected.size > 0) { toggle(id); } else { location.href = "Annotation Workspace.html"; } });
+    });
+  }
+  function toggle(id) { selected.has(id) ? selected.delete(id) : selected.add(id); updateBulk(); render(); }
+  function updateBulk() {
+    $("#bulkCount").textContent = selected.size;
+    $("#bulkbar").classList.toggle("show", selected.size > 0);
+  }
+  $("#bulkClose").addEventListener("click", () => { selected.clear(); updateBulk(); render(); });
+  $("#selectAll").addEventListener("click", () => {
+    const q = $("#search").value.toLowerCase();
+    const list = imgs.filter(im => (filter==='all'||im.state===filter) && im.fn.includes(q));
+    if (selected.size === list.length) selected.clear(); else list.forEach(im => selected.add(im.id));
+    updateBulk(); render();
+  });
+  $("#search").addEventListener("input", render);
+  $$(".tab-u").forEach(t => t.addEventListener("click", () => { $$(".tab-u").forEach(x=>x.setAttribute("aria-selected","false")); t.setAttribute("aria-selected","true"); filter = t.dataset.f; render(); }));
+
+  // upload drag visuals
+  const up = $("#upload");
+  ["dragenter","dragover"].forEach(ev => up.addEventListener(ev, e => { e.preventDefault(); up.classList.add("drag"); }));
+  ["dragleave","drop"].forEach(ev => up.addEventListener(ev, e => { e.preventDefault(); up.classList.remove("drag"); if (ev==="drop") toast("Upload started","Processing dropped images…"); }));
+  up.addEventListener("click", () => toast("Browse files","File picker would open here."));
+
+  function syncThemeIcon(){ const d=window.ASTheme.resolved()==="dark"; $("#themeIcon").innerHTML = d?'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>':'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'; }
+  $("#themeBtn").addEventListener("click", ()=>window.ASTheme.set(window.ASTheme.resolved()==="dark"?"light":"dark"));
+  window.addEventListener("themechange", syncThemeIcon);
+
+  function toast(title, msg) {
+    const t = document.createElement("div");
+    t.style.cssText = "display:flex;gap:12px;align-items:flex-start;min-width:280px;max-width:360px;background:var(--surface);border:1px solid var(--outline);border-left:3px solid var(--primary);border-radius:var(--radius-lg);box-shadow:var(--elevation-4);padding:12px 14px;transform:translateX(120%);transition:transform var(--duration-slow) var(--ease-spring)";
+    t.innerHTML = `<span style="color:var(--primary);flex:none;width:18px;height:18px;margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div style="flex:1"><div class="t-label" style="margin-bottom:2px">${title}</div><div class="t-caption">${msg}</div></div>`;
+    $("#toastHost").appendChild(t); requestAnimationFrame(()=>t.style.transform="translateX(0)");
+    setTimeout(()=>{ t.style.transform="translateX(120%)"; setTimeout(()=>t.remove(),400); }, 3000);
+  }
+
+  syncThemeIcon(); render();
+</script>
+</body>
+</html>

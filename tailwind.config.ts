@@ -9,10 +9,21 @@ const config: Config = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-geist-sans)', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'SF Mono', 'JetBrains Mono', 'Menlo', 'monospace'],
+      },
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
-        // Material Design 3 Color Palette
+        'muted-foreground': 'var(--muted-foreground)',
+        'subtle-foreground': 'var(--subtle-foreground)',
+        outline: {
+          DEFAULT: 'var(--outline)',
+          strong: 'var(--outline-strong)',
+          subtle: 'var(--outline-subtle)',
+        },
+        // Brand scale (kept) + semantic token aliases (new design system)
         primary: {
           50: '#f0f4ff',
           100: '#e0e9ff',
@@ -25,12 +36,45 @@ const config: Config = {
           800: '#3730a3',
           900: '#312e81',
           950: '#1e1b4b',
+          DEFAULT: 'var(--primary)',
+          foreground: 'var(--on-primary)',
+          container: 'var(--primary-container)',
+          'on-container': 'var(--on-primary-container)',
+          subtle: 'var(--primary-subtle)',
         },
         surface: {
           light: '#fafafa',
           DEFAULT: '#f5f5f5',
           dark: '#eeeeee',
           darker: '#e0e0e0',
+          base: 'var(--surface)',
+          variant: 'var(--surface-variant)',
+          container: 'var(--surface-container)',
+          'container-high': 'var(--surface-container-high)',
+        },
+        secondary: {
+          DEFAULT: 'var(--secondary)',
+          foreground: 'var(--on-secondary)',
+          container: 'var(--secondary-container)',
+          'on-container': 'var(--on-secondary-container)',
+        },
+        success: {
+          DEFAULT: 'var(--success)',
+          foreground: 'var(--on-success)',
+          container: 'var(--success-container)',
+          'on-container': 'var(--on-success-container)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          foreground: 'var(--on-warning)',
+          container: 'var(--warning-container)',
+          'on-container': 'var(--on-warning-container)',
+        },
+        destructive: {
+          DEFAULT: 'var(--destructive)',
+          foreground: 'var(--on-destructive)',
+          container: 'var(--destructive-container)',
+          'on-container': 'var(--on-destructive-container)',
         },
         accent: {
           DEFAULT: '#10b981',
@@ -48,6 +92,18 @@ const config: Config = {
         'medium': '0 4px 16px rgba(0, 0, 0, 0.08)',
         'large': '0 8px 32px rgba(0, 0, 0, 0.12)',
         'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+        'elevation-1': 'var(--elevation-1)',
+        'elevation-2': 'var(--elevation-2)',
+        'elevation-3': 'var(--elevation-3)',
+        'elevation-4': 'var(--elevation-4)',
+        'elevation-5': 'var(--elevation-5)',
+      },
+      transitionTimingFunction: {
+        standard: 'var(--ease-standard)',
+        emphasized: 'var(--ease-emphasized)',
+        decelerate: 'var(--ease-decelerate)',
+        accelerate: 'var(--ease-accelerate)',
+        spring: 'var(--ease-spring)',
       },
       backdropBlur: {
         xs: '2px',

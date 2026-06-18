@@ -1,155 +1,105 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImageUploader } from '@/components/image-uploader';
 import { AnnotationCanvas, type AnnotationCanvasHandle } from '@/components/annotation-canvas-fabric';
-import { Controls } from '@/components/controls';
-import { ToolPanel } from '@/components/tool-panel';
-import { AnnotationList } from '@/components/annotation-list';
-import { ExportPanel } from '@/components/export-panel';
 import { useAnnotationStore } from '@/lib/store/annotation-store';
-import { useEffect, useState } from 'react';
+import { TopBar } from '@/components/workspace/top-bar';
+import { ToolRail } from '@/components/workspace/tool-rail';
+import { Inspector } from '@/components/workspace/inspector';
+import { StatusBar } from '@/components/workspace/status-bar';
+import { ShortcutsOverlay } from '@/components/workspace/shortcuts-overlay';
+import { ExportDialog } from '@/components/workspace/export-dialog';
+import './ds.css';
+import './workspace.css';
 
 export default function HomePage() {
   const [hydrated, setHydrated] = useState(false);
   const canvasRef = useRef<AnnotationCanvasHandle>(null);
-  const image = useAnnotationStore((state) => state.image);
-  const setSelectedTool = useAnnotationStore((state) => state.setSelectedTool);
-  const { undo, redo, clearImage } = useAnnotationStore();
+  const image = useAnnotationStore((s) => s.image);
+  const setSelectedTool = useAnnotationStore((s) => s.setSelectedTool);
+  const undo = useAnnotationStore((s) => s.undo);
+  const redo = useAnnotationStore((s) => s.redo);
+  const clearImage = useAnnotationStore((s) => s.clearImage);
+  const resetZoom = useAnnotationStore((s) => s.resetZoom);
 
+  const [exportOpen, setExportOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  useEffect(() => { setHydrated(true); }, []);
+
+  // Global keyboard shortcuts (tools, undo/redo, export, help). Canvas-local
+  // keys (Space pan, Esc/Enter/Delete) are handled inside the canvas component.
   useEffect(() => {
-    setHydrated(true);
-  }, []);
+    const onKey = (e: KeyboardEvent): void => {
+      const el = e.target;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return;
+      const k = e.key.toLowerCase();
 
-  // Get canvas ref for export
-  const getCanvasRef = () => {
-    return { current: canvasRef.current?.getCanvas() || null };
-  };
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) { e.preventDefault(); setShortcutsOpen(true); return; }
+      if (e.key === 'Escape') { setShortcutsOpen(false); setExportOpen(false); return; }
+      if ((e.ctrlKey || e.metaKey) && k === 'e') { e.preventDefault(); setExportOpen(true); return; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'z') { e.preventDefault(); redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); undo(); return; }
+      if (e.ctrlKey || e.metaKey) return;
 
-  // Global keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent): void => {
-      // Ignore if user is typing in an input field
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
-
-      // Tool shortcuts
-      if (e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        setSelectedTool('select');
-      } else if (e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        setSelectedTool('bbox');
-      } else if (e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        setSelectedTool('polygon');
-      }
-
-      // Undo/Redo shortcuts
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') {
-        e.preventDefault();
-        redo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        undo();
-      }
+      if (k === 's') { e.preventDefault(); setSelectedTool('select'); }
+      else if (k === 'b') { e.preventDefault(); setSelectedTool('bbox'); }
+      else if (k === 'p') { e.preventDefault(); setSelectedTool('polygon'); }
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [setSelectedTool, undo, redo]);
+
+  const getCanvas = () => canvasRef.current?.getCanvas() ?? null;
+
+  const handleNewImage = (): void => {
+    if (confirm('Clear the current image and all annotations?')) clearImage();
+  };
 
   if (!hydrated) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Loading...</p>
+      <div className="ds" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <p className="muted">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!image) {
+    return (
+      <div className="ds" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 'var(--space-8)' }}>
+        <div style={{ width: '100%', maxWidth: 520 }}>
+          <ImageUploader />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Modern Header with Glass-morphism */}
-      <header className="surface-elevated-medium border-b border-gray-200 dark:border-gray-700/50 px-6 py-4 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            {/* Logo & Title */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
-                  Annotation Studio
-                </h1>
-                {image && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-                    {image.name} • {image.width} × {image.height}px
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* New Image Button */}
-            {image && (
-              <button
-                onClick={() => {
-                  if (confirm('Clear current image and annotations?')) {
-                    clearImage();
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-error to-error-dark text-white rounded-xl shadow-soft hover:shadow-medium transition-all duration-200 active:scale-95"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                New Image
-              </button>
-            )}
-          </div>
-
-          {/* Right Controls */}
-          <div className="flex items-center gap-4">
-            {image && <ExportPanel canvasRef={getCanvasRef()} />}
-            {image && <Controls />}
+    <div className="ds ws">
+      <TopBar
+        onExport={() => setExportOpen(true)}
+        onHelp={() => setShortcutsOpen(true)}
+        onNewImage={handleNewImage}
+      />
+      <ToolRail />
+      <main className="canvas-wrap">
+        <div className="canvas-host">
+          <AnnotationCanvas ref={canvasRef} />
+        </div>
+        <div className="canvas-float cf-tr">
+          <div className="float-card">
+            <button className="icon-btn sm" title="Fit to screen" aria-label="Fit to screen" onClick={resetZoom}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+            </button>
           </div>
         </div>
-      </header>
+      </main>
+      <Inspector />
+      <StatusBar onHelp={() => setShortcutsOpen(true)} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {image ? (
-          <>
-            {/* Left Sidebar - Tools */}
-            <aside className="w-20 md:w-72 surface-elevated border-r border-gray-200 dark:border-gray-700/50 p-4 animate-slide-in-right transition-all duration-300">
-              <ToolPanel />
-            </aside>
-
-            {/* Canvas Area */}
-            <div className="flex-1 relative bg-gray-50 dark:bg-gray-800 overflow-hidden">
-              <AnnotationCanvas ref={canvasRef} />
-            </div>
-
-            {/* Right Sidebar - Annotations List */}
-            <aside className="w-80 lg:w-96 surface-elevated border-l border-gray-200 dark:border-gray-700/50 animate-slide-in-right">
-              <AnnotationList />
-            </aside>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center p-8 animate-fade-in-up">
-            <div className="card-hover max-w-lg w-full p-12">
-              <ImageUploader />
-            </div>
-          </div>
-        )}
-      </div>
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} getCanvas={getCanvas} />
     </div>
   );
 }

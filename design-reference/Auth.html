@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  body { height: 100vh; overflow: hidden; }
+  .auth { display: grid; grid-template-columns: 1.05fr 1fr; height: 100vh; }
+
+  /* LEFT — branded visual */
+  .brandside { position: relative; overflow: hidden; background: var(--neutral-950); color: #fff; display: flex; flex-direction: column; padding: var(--space-12); }
+  .brandside .bg { position: absolute; inset: 0; background:
+      radial-gradient(120% 90% at 15% 10%, color-mix(in srgb, var(--blue-600) 55%, transparent), transparent 60%),
+      radial-gradient(100% 80% at 95% 100%, color-mix(in srgb, var(--violet-600) 45%, transparent), transparent 55%),
+      var(--neutral-950); }
+  .brandside .mesh { position: absolute; inset: 0; opacity: 0.5; background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size: 48px 48px; mask-image: radial-gradient(80% 80% at 50% 40%, #000, transparent 75%); }
+  .brandside > * { position: relative; z-index: 1; }
+  .blogo { display: flex; align-items: center; gap: var(--space-3); }
+  .blogo .mark { width: 38px; height: 38px; }
+  .blogo b { font-size: var(--text-title-size); font-weight: 600; letter-spacing: -0.01em; }
+
+  .bhero { margin: auto 0; max-width: 30ch; }
+  .bhero h1 { font-size: 42px; line-height: 1.1; font-weight: 600; letter-spacing: -0.025em; margin: 0 0 var(--space-5); }
+  .bhero p { font-size: var(--text-body-lg-size); line-height: 1.6; color: rgba(255,255,255,.7); margin: 0; }
+
+  /* floating annotation demo */
+  .demo-frame { position: relative; margin-top: var(--space-10); width: 340px; height: 200px; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--elevation-5); border: 1px solid rgba(255,255,255,.12); }
+  .demo-frame .ph { position: absolute; inset: 0; background: linear-gradient(180deg,#2b3a55,#3d4a66 40%,#585c66 52%,#2a2d35); }
+  .demo-frame .mb { position: absolute; border: 2px solid var(--bc); border-radius: 2px; }
+  .demo-frame .mb::after { content:""; position:absolute; inset:0; background:var(--bc); opacity:.16; }
+  .demo-frame .mb .lab { position: absolute; top: -19px; left: -2px; height: 17px; padding: 0 6px; background: var(--bc); color: #fff; font-size: 10px; font-weight: 600; border-radius: 3px; display: flex; align-items: center; white-space: nowrap; }
+  .demo-frame .mb.animate-in { animation: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .demo-frame .mb.animate-in { animation: drawBox .5s var(--ease-emphasized) both; }
+  }
+  @keyframes drawBox { from { clip-path: inset(0 100% 100% 0); } to { clip-path: inset(0 0 0 0); } }
+
+  .quote { margin-top: auto; display: flex; gap: var(--space-4); align-items: center; padding-top: var(--space-10); }
+  .quote .av { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,var(--blue-400),var(--violet-500)); flex: none; }
+  .quote .qt { font-size: var(--text-label-size); line-height: 1.5; }
+  .quote .qt b { display: block; color: rgba(255,255,255,.6); font-weight: 500; margin-top: 3px; }
+  .logos { display: flex; gap: var(--space-5); margin-top: var(--space-6); opacity: .55; font-weight: 600; font-size: var(--text-caption-size); letter-spacing: 0.04em; }
+
+  /* RIGHT — form */
+  .formside { display: flex; flex-direction: column; padding: var(--space-8) var(--space-12); overflow-y: auto; background: var(--background); }
+  .formside .topnav { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+  .formwrap { margin: auto; width: 100%; max-width: 384px; padding: var(--space-8) 0; }
+  .formwrap .head { margin-bottom: var(--space-8); }
+  .formwrap .head h2 { font-size: var(--text-headline-size); font-weight: 600; letter-spacing: -0.018em; margin: 0 0 var(--space-2); }
+  .formwrap .head p { margin: 0; color: var(--muted-foreground); }
+  .formwrap .head p a { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
+
+  .oauth { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .oauth.single { grid-template-columns: 1fr; }
+  .oauth-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-2); height: 42px; border: 1px solid var(--outline-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--foreground); font: inherit; font-size: var(--text-label-size); font-weight: 600; cursor: pointer; transition: all var(--duration-fast) var(--ease-standard); }
+  .oauth-btn:hover { background: var(--surface-variant); border-color: var(--outline-strong); transform: translateY(-1px); }
+  .oauth-btn svg { width: 18px; height: 18px; }
+
+  .divider-or { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-5) 0; color: var(--subtle-foreground); font-size: var(--text-caption-size); }
+  .divider-or::before, .divider-or::after { content: ""; height: 1px; background: var(--outline); flex: 1; }
+
+  .form-fields { display: flex; flex-direction: column; gap: var(--space-4); }
+  .pw-wrap { position: relative; }
+  .pw-wrap .toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+  .form-row { display: flex; align-items: center; justify-content: space-between; }
+  .form-row a { color: var(--primary); text-decoration: none; font-size: var(--text-caption-size); font-weight: 600; cursor: pointer; }
+  .strength { display: flex; gap: 4px; margin-top: 8px; }
+  .strength .seg { flex: 1; height: 4px; border-radius: var(--radius-full); background: var(--surface-variant); transition: background var(--duration-base); }
+  .terms { font-size: var(--text-caption-size); color: var(--muted-foreground); margin-top: var(--space-3); line-height: 1.5; }
+  .terms a { color: var(--primary); text-decoration: none; font-weight: 500; }
+
+  /* email verify state */
+  .verify { text-align: center; }
+  .verify .icon { width: 72px; height: 72px; border-radius: var(--radius-2xl); background: var(--primary-container); color: var(--primary); display: grid; place-items: center; margin: 0 auto var(--space-6); }
+  .verify .icon svg { width: 34px; height: 34px; }
+  .verify .email { font-family: var(--font-mono); font-weight: 600; color: var(--foreground); }
+
+  [data-view] { display: none; }
+  [data-view].active { display: block; }
+
+  @media (max-width: 880px) {
+    .auth { grid-template-columns: 1fr; }
+    .brandside { display: none; }
+    .formside { padding: var(--space-6); }
+  }
+</style>
+</head>
+<body>
+<div class="auth">
+  <!-- BRAND SIDE -->
+  <div class="brandside">
+    <div class="bg"></div>
+    <div class="mesh"></div>
+    <div class="blogo">
+      <svg class="mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+        <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="#fff" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+        <rect x="6" y="6" width="5" height="5" rx="1.5" fill="#fff"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="#fff"/>
+        <rect x="6" y="25" width="5" height="5" rx="1.5" fill="#fff"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="#fff"/>
+      </svg>
+      <b>Annotation Studio</b>
+    </div>
+
+    <div class="bhero">
+      <h1>Label data your model can actually trust.</h1>
+      <p>Bounding boxes, polygons, and keypoints with model-assisted labeling, review workflows, and one-click export to COCO &amp; YOLO.</p>
+      <div class="demo-frame">
+        <div class="ph"></div>
+        <span class="mb animate-in" style="--bc:#3b6af5;left:14%;top:42%;width:22%;height:34%"><span class="lab">car 98%</span></span>
+        <span class="mb animate-in" style="--bc:#10b981;left:44%;top:38%;width:28%;height:40%;animation-delay:.25s"><span class="lab">truck 94%</span></span>
+        <span class="mb animate-in" style="--bc:#8b5cf6;left:76%;top:48%;width:12%;height:30%;animation-delay:.5s"><span class="lab">person</span></span>
+      </div>
+    </div>
+
+    <div>
+      <div class="quote">
+        <div class="av"></div>
+        <div class="qt">"We cut labeling time by 60% and shipped our detector a month early."<b>Priya Nair · ML Lead, Northbeam</b></div>
+      </div>
+      <div class="logos"><span>NORTHBEAM</span><span>VECTRA</span><span>OAKRIDGE AI</span><span>HELIX</span></div>
+    </div>
+  </div>
+
+  <!-- FORM SIDE -->
+  <div class="formside">
+    <div class="topnav">
+      <span class="t-caption muted">New here?</span>
+      <button class="btn btn-outline btn-sm" id="toSignup">Create account</button>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </div>
+
+    <div class="formwrap">
+      <!-- SIGN IN -->
+      <div data-view="signin" class="active">
+        <div class="head"><h2>Welcome back</h2><p>Sign in to continue to your workspace.</p></div>
+        <div class="oauth">
+          <button class="oauth-btn"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg>Google</button>
+          <button class="oauth-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1C5.92 1 1 5.92 1 12c0 4.87 3.16 9 7.54 10.46.55.1.75-.24.75-.53v-1.86c-3.07.67-3.72-1.48-3.72-1.48-.5-1.28-1.23-1.62-1.23-1.62-1-.69.08-.67.08-.67 1.11.08 1.7 1.14 1.7 1.14.99 1.69 2.59 1.2 3.22.92.1-.72.39-1.2.7-1.48-2.45-.28-5.03-1.23-5.03-5.46 0-1.21.43-2.2 1.14-2.97-.11-.28-.5-1.4.11-2.92 0 0 .93-.3 3.05 1.13a10.6 10.6 0 0 1 5.56 0c2.12-1.43 3.05-1.13 3.05-1.13.61 1.52.22 2.64.11 2.92.71.77 1.13 1.76 1.13 2.97 0 4.24-2.58 5.18-5.04 5.45.4.34.75 1.01.75 2.04v3.03c0 .3.2.64.76.53A11.01 11.01 0 0 0 23 12c0-6.08-4.92-11-11-11z"/></svg>GitHub</button>
+        </div>
+        <div class="divider-or">or continue with email</div>
+        <form class="form-fields" id="signinForm" novalidate>
+          <div class="field"><label for="si-email">Email</label>
+            <div class="input-group"><svg class="lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6" stroke-linecap="round"/></svg><input class="input" id="si-email" type="email" placeholder="you@company.com" value="ana@acmevision.ai"></div>
+          </div>
+          <div class="field">
+            <div class="form-row"><label for="si-pw">Password</label><a id="toForgot">Forgot password?</a></div>
+            <div class="pw-wrap"><input class="input" id="si-pw" type="password" placeholder="••••••••" value="supersecret"><button type="button" class="icon-btn sm toggle" data-pw="si-pw" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          </div>
+          <label class="check" style="font-size:var(--text-label-size)"><input type="checkbox" checked><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Keep me signed in</label>
+          <button class="btn btn-primary btn-lg btn-block" type="submit">Sign in</button>
+        </form>
+      </div>
+
+      <!-- SIGN UP -->
+      <div data-view="signup">
+        <div class="head"><h2>Create your account</h2><p>Already have one? <a id="toSignin">Sign in</a></p></div>
+        <div class="oauth">
+          <button class="oauth-btn"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg>Google</button>
+          <button class="oauth-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1C5.92 1 1 5.92 1 12c0 4.87 3.16 9 7.54 10.46.55.1.75-.24.75-.53v-1.86c-3.07.67-3.72-1.48-3.72-1.48-.5-1.28-1.23-1.62-1.23-1.62-1-.69.08-.67.08-.67 1.11.08 1.7 1.14 1.7 1.14.99 1.69 2.59 1.2 3.22.92.1-.72.39-1.2.7-1.48-2.45-.28-5.03-1.23-5.03-5.46 0-1.21.43-2.2 1.14-2.97-.11-.28-.5-1.4.11-2.92 0 0 .93-.3 3.05 1.13a10.6 10.6 0 0 1 5.56 0c2.12-1.43 3.05-1.13 3.05-1.13.61 1.52.22 2.64.11 2.92.71.77 1.13 1.76 1.13 2.97 0 4.24-2.58 5.18-5.04 5.45.4.34.75 1.01.75 2.04v3.03c0 .3.2.64.76.53A11.01 11.01 0 0 0 23 12c0-6.08-4.92-11-11-11z"/></svg>GitHub</button>
+        </div>
+        <div class="divider-or">or sign up with email</div>
+        <form class="form-fields" id="signupForm" novalidate>
+          <div class="field"><label for="su-name">Full name</label><input class="input" id="su-name" placeholder="Ana Marquez"></div>
+          <div class="field"><label for="su-email">Work email</label>
+            <div class="input-group"><svg class="lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6" stroke-linecap="round"/></svg><input class="input" id="su-email" type="email" placeholder="you@company.com"></div>
+          </div>
+          <div class="field"><label for="su-pw">Password</label>
+            <div class="pw-wrap"><input class="input" id="su-pw" type="password" placeholder="At least 8 characters"><button type="button" class="icon-btn sm toggle" data-pw="su-pw" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+            <div class="strength" id="strength"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+            <span class="hint" id="strengthLabel">Use 8+ characters with a mix of letters, numbers &amp; symbols.</span>
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" type="submit">Create account</button>
+          <p class="terms">By creating an account you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+        </form>
+      </div>
+
+      <!-- FORGOT -->
+      <div data-view="forgot">
+        <div class="head"><h2>Reset password</h2><p>Enter your email and we'll send a reset link.</p></div>
+        <form class="form-fields" id="forgotForm" novalidate>
+          <div class="field"><label for="fp-email">Email</label>
+            <div class="input-group"><svg class="lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6" stroke-linecap="round"/></svg><input class="input" id="fp-email" type="email" placeholder="you@company.com"></div>
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" type="submit">Send reset link</button>
+          <button class="btn btn-ghost btn-block" type="button" id="backSignin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Back to sign in</button>
+        </form>
+      </div>
+
+      <!-- LINK SENT -->
+      <div data-view="sent">
+        <div class="verify">
+          <div class="icon" style="background:var(--success-container);color:var(--success)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12.5V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h9"/><path d="m2 7 10 6 10-6"/><path d="m16 19 2 2 4-4"/></svg></div>
+          <h2 class="t-headline" style="margin:0 0 8px">Reset link sent</h2>
+          <p class="muted" style="margin:0 0 28px">We sent a reset link to <span class="email" id="sentEmail">you@company.com</span>. It expires in 30 minutes.</p>
+          <button class="btn btn-primary btn-block" id="openLink">I have the link — set new password</button>
+          <button class="btn btn-ghost btn-block" style="margin-top:10px" id="sentBack">Back to sign in</button>
+        </div>
+      </div>
+
+      <!-- RESET (set new password) -->
+      <div data-view="reset">
+        <div class="head"><h2>Set a new password</h2><p>For <span class="mono" style="color:var(--foreground);font-weight:600" id="resetEmail">you@company.com</span>. Choose something you haven't used before.</p></div>
+        <form class="form-fields" id="resetForm" novalidate>
+          <div class="field"><label for="rs-pw">New password</label>
+            <div class="pw-wrap"><input class="input" id="rs-pw" type="password" placeholder="At least 8 characters"><button type="button" class="icon-btn sm toggle" data-pw="rs-pw" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+            <div class="strength" id="rsStrength"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+            <span class="hint" id="rsStrengthLabel">Use 8+ characters with a mix of letters, numbers &amp; symbols.</span>
+          </div>
+          <div class="field"><label for="rs-confirm">Confirm password</label>
+            <div class="pw-wrap"><input class="input" id="rs-confirm" type="password" placeholder="Re-enter password"><button type="button" class="icon-btn sm toggle" data-pw="rs-confirm" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+            <span class="err" id="rsMatchErr" style="display:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>Passwords don't match.</span>
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" type="submit">Update password</button>
+        </form>
+      </div>
+
+      <!-- RESET DONE -->
+      <div data-view="resetdone">
+        <div class="verify">
+          <div class="icon" style="background:var(--success-container);color:var(--success)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+          <h2 class="t-headline" style="margin:0 0 8px">Password updated</h2>
+          <p class="muted" style="margin:0 0 28px">Your password has been changed. You can now sign in with your new credentials.</p>
+          <button class="btn btn-primary btn-block" id="resetToSignin">Continue to sign in</button>
+        </div>
+      </div>
+
+      <!-- VERIFY -->
+      <div data-view="verify">
+        <div class="verify">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div>
+          <h2 class="t-headline" style="margin:0 0 8px">Check your inbox</h2>
+          <p class="muted" style="margin:0 0 28px">We sent a verification link to <span class="email" id="verifyEmail">you@company.com</span>. Click it to activate your account.</p>
+          <button class="btn btn-primary btn-block" id="openMail">Open email app</button>
+          <button class="btn btn-ghost btn-block" style="margin-top:10px" id="resend">Resend link · <span id="cooldown">resend in 30s</span></button>
+          <p class="t-caption muted" style="margin-top:20px">Wrong address? <a id="backSignup" style="color:var(--primary);cursor:pointer;text-decoration:none;font-weight:600">Go back</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="t-caption muted" style="text-align:center">© 2026 Annotation Studio · <a href="Landing.html" style="color:inherit">Home</a> · <a href="#" style="color:inherit">Privacy</a> · <a href="#" style="color:inherit">Terms</a></div>
+  </div>
+</div>
+
+<div id="toastHost" style="position:fixed;bottom:var(--space-6);right:var(--space-6);z-index:var(--z-toast);display:flex;flex-direction:column;gap:10px;align-items:flex-end"></div>
+
+<script>
+  const $ = (s,r=document)=>r.querySelector(s); const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  function show(view) { $$("[data-view]").forEach(v => v.classList.toggle("active", v.dataset.view === view)); }
+  $("#toSignup").addEventListener("click", () => show("signup"));
+  $("#toSignin")?.addEventListener("click", () => show("signin"));
+  $("#toForgot").addEventListener("click", () => show("forgot"));
+  $("#backSignin").addEventListener("click", () => show("signin"));
+  $("#backSignup").addEventListener("click", () => show("signup"));
+
+  // password toggle
+  $$(".toggle").forEach(b => b.addEventListener("click", () => {
+    const inp = $("#" + b.dataset.pw); inp.type = inp.type === "password" ? "text" : "password";
+    b.style.color = inp.type === "text" ? "var(--primary)" : "";
+  }));
+
+  // strength meter (reusable)
+  const colors = ["var(--destructive)","var(--warning)","var(--warning)","var(--success)"];
+  const labels = ["Weak password","Fair — add more variety","Good","Strong password"];
+  function scorePw(v){ let s=0; if(v.length>=8)s++; if(/[A-Z]/.test(v)&&/[a-z]/.test(v))s++; if(/\d/.test(v))s++; if(/[^A-Za-z0-9]/.test(v))s++; return s; }
+  function wireStrength(inputId, segWrapId, labelId){
+    $("#"+inputId)?.addEventListener("input", (e)=>{
+      const v=e.target.value, score=scorePw(v);
+      $$("#"+segWrapId+" .seg").forEach((s,i)=> s.style.background = i<score ? colors[Math.max(0,score-1)] : "var(--surface-variant)");
+      $("#"+labelId).textContent = v ? labels[Math.max(0,score-1)] : "Use 8+ characters with a mix of letters, numbers & symbols.";
+    });
+  }
+  wireStrength("su-pw","strength","strengthLabel");
+  wireStrength("rs-pw","rsStrength","rsStrengthLabel");
+
+  // validation + submit
+  function emailOK(v){ return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v); }
+  $("#signinForm").addEventListener("submit", (e) => { e.preventDefault();
+    const em = $("#si-email"); if (!emailOK(em.value)) { em.setAttribute("aria-invalid","true"); return; }
+    const btn = e.target.querySelector("button[type=submit]"); btn.dataset.loading="true"; btn.innerHTML='<span class="spinner"></span><span class="btn-label">Sign in</span>';
+    setTimeout(()=>location.href="Dashboard.html", 900);
+  });
+  $("#signupForm").addEventListener("submit", (e) => { e.preventDefault();
+    const em = $("#su-email"); if (!emailOK(em.value)) { em.setAttribute("aria-invalid","true"); em.focus(); return; }
+    $("#verifyEmail").textContent = em.value; show("verify"); startCooldown();
+  });
+  $("#forgotForm").addEventListener("submit", (e) => { e.preventDefault();
+    const em = $("#fp-email"); if (!emailOK(em.value)) { em.setAttribute("aria-invalid","true"); return; }
+    $("#sentEmail").textContent = em.value; $("#resetEmail").textContent = em.value; show("sent");
+  });
+  // link-sent → reset password screen (simulates clicking the email link)
+  $("#openLink")?.addEventListener("click", () => show("reset"));
+  $("#sentBack")?.addEventListener("click", () => show("signin"));
+  // reset password: validate match, then success
+  $("#resetForm")?.addEventListener("submit", (e) => { e.preventDefault();
+    const pw = $("#rs-pw"), cf = $("#rs-confirm"), err = $("#rsMatchErr");
+    if (scorePw(pw.value) < 2 || pw.value.length < 8) { pw.setAttribute("aria-invalid","true"); pw.focus(); return; }
+    if (pw.value !== cf.value) { cf.setAttribute("aria-invalid","true"); err.style.display = "flex"; cf.focus(); return; }
+    err.style.display = "none";
+    const btn = e.target.querySelector("button[type=submit]"); btn.dataset.loading="true"; btn.innerHTML='<span class="spinner"></span><span class="btn-label">Update password</span>';
+    setTimeout(()=>{ btn.removeAttribute("data-loading"); btn.textContent="Update password"; show("resetdone"); }, 900);
+  });
+  $("#rs-confirm")?.addEventListener("input", () => { $("#rsMatchErr").style.display = "none"; });
+  $("#resetToSignin")?.addEventListener("click", () => show("signin"));
+  $$("input").forEach(i => i.addEventListener("input", () => i.removeAttribute("aria-invalid")));
+  $("#openMail")?.addEventListener("click", () => toast("Opening mail","Launching your email app…"));
+
+  let cd;
+  function startCooldown() {
+    let t = 30; const el = $("#cooldown"); const btn = $("#resend"); btn.disabled = true;
+    clearInterval(cd); cd = setInterval(() => { t--; el.textContent = `resend in ${t}s`; if (t<=0){ clearInterval(cd); el.textContent="Resend now"; btn.disabled=false; } }, 1000);
+  }
+  $("#resend")?.addEventListener("click", () => { if (!$("#resend").disabled) { toast("Link resent","A new verification link is on its way."); startCooldown(); } });
+
+  function syncThemeIcon(){ const d=window.ASTheme.resolved()==="dark"; $("#themeIcon").innerHTML = d?'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>':'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'; }
+  $("#themeBtn").addEventListener("click", ()=>window.ASTheme.set(window.ASTheme.resolved()==="dark"?"light":"dark"));
+  window.addEventListener("themechange", syncThemeIcon);
+
+  function toast(title, msg) {
+    const t = document.createElement("div");
+    t.style.cssText = "display:flex;gap:12px;align-items:flex-start;min-width:280px;max-width:360px;background:var(--surface);border:1px solid var(--outline);border-left:3px solid var(--primary);border-radius:var(--radius-lg);box-shadow:var(--elevation-4);padding:12px 14px;transform:translateX(120%);transition:transform var(--duration-slow) var(--ease-spring)";
+    t.innerHTML = `<span style="color:var(--primary);flex:none;width:18px;height:18px;margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div style="flex:1"><div class="t-label" style="margin-bottom:2px">${title}</div><div class="t-caption">${msg}</div></div>`;
+    $("#toastHost").appendChild(t); requestAnimationFrame(()=>t.style.transform="translateX(0)");
+    setTimeout(()=>{ t.style.transform="translateX(120%)"; setTimeout(()=>t.remove(),400); }, 3000);
+  }
+  syncThemeIcon();
+</script>
+</body>
+</html>

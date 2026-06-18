@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Design Deliverables</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 var(--space-6); }
+  .top { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6) 0; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo svg { width: 34px; height: 34px; }
+  .logo b { font-size: var(--text-title-size); font-weight: 600; letter-spacing: -0.01em; }
+  .logo span { font-size: var(--text-caption-size); color: var(--muted-foreground); display: block; }
+
+  .hero { padding: var(--space-8) 0 var(--space-10); }
+  .hero .eyebrow { color: var(--primary); font-weight: 600; font-size: var(--text-caption-size); letter-spacing: 0.08em; text-transform: uppercase; }
+  .hero h1 { font-size: clamp(32px, 5vw, 46px); line-height: 1.08; font-weight: 600; letter-spacing: -0.025em; margin: var(--space-3) 0 var(--space-4); max-width: 20ch; }
+  .hero p { font-size: var(--text-body-lg-size); color: var(--muted-foreground); max-width: 60ch; margin: 0; }
+
+  .step-label { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-12) 0 var(--space-5); }
+  .step-label .n { width: 30px; height: 30px; border-radius: var(--radius-md); background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-weight: 600; font-size: var(--text-label-size); flex: none; }
+  .step-label h2 { font-size: var(--text-title-lg-size); font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .step-label .meta { margin-left: auto; font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-5); }
+  .card { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--elevation-1); text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard); }
+  .card:hover { transform: translateY(-3px); box-shadow: var(--elevation-3); border-color: var(--outline-strong); }
+  .card .preview { height: 168px; position: relative; overflow: hidden; border-bottom: 1px solid var(--outline-subtle); background: var(--surface-variant); }
+  .card .preview .mini { position: absolute; inset: 0; transform: scale(1); }
+  .card .body { padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; display: flex; flex-direction: column; }
+  .card .body h3 { font-size: var(--text-title-size); font-weight: 600; margin: 0 0 4px; }
+  .card .body p { font-size: var(--text-caption-size); color: var(--muted-foreground); margin: 0; flex: 1; line-height: 1.5; }
+  .card .body .go { display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-size: var(--text-label-size); font-weight: 600; margin-top: var(--space-4); }
+  .card .body .go svg { width: 15px; height: 15px; transition: transform var(--duration-fast) var(--ease-standard); }
+  .card:hover .body .go svg { transform: translateX(3px); }
+
+  /* mini previews */
+  .pv { position: absolute; inset: 0; }
+  .pv-tokens { background: linear-gradient(135deg, var(--blue-600), var(--violet-600)); display: grid; place-items: center; }
+  .pv-tokens .ramp { display: flex; gap: 0; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--elevation-3); }
+  .pv-tokens .ramp span { width: 26px; height: 56px; }
+  .pv-comp { background: var(--surface-variant); display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 20px; }
+  .pv-ws { background: repeating-conic-gradient(var(--surface-sunken) 0% 25%, var(--background) 0% 50%) 50% / 16px 16px; position: relative; }
+  .pv-ws .ph { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 60%; height: 60%; border-radius: 4px; background: linear-gradient(180deg,#2b3a55,#3d4a66 45%,#2a2d35); box-shadow: var(--elevation-3); }
+  .pv-ws .mb { position: absolute; border: 2px solid var(--bc); border-radius: 1px; }
+  .pv-card { display: grid; gap: 8px; padding: 18px; }
+  .pv-bar { height: 10px; border-radius: 3px; background: var(--outline-strong); opacity: .5; }
+
+  .toolbar { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+  .note { margin-top: var(--space-12); padding: var(--space-5) var(--space-6); background: var(--primary-subtle); border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--outline)); border-radius: var(--radius-lg); display: flex; gap: var(--space-4); align-items: flex-start; }
+  .note svg { width: 20px; height: 20px; color: var(--primary); flex: none; margin-top: 2px; }
+  .note p { margin: 0; font-size: var(--text-label-size); color: var(--foreground); line-height: 1.6; }
+  .note p b { font-weight: 600; }
+  footer { text-align: center; padding: var(--space-16) 0 var(--space-12); color: var(--muted-foreground); font-size: var(--text-caption-size); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+        <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="var(--on-primary)" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+        <rect x="6" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+        <rect x="6" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+      </svg>
+      <div><b>Annotation Studio</b><span>Design deliverables · v1.0</span></div>
+    </div>
+    <div class="toolbar">
+      <div class="theme-switch" style="display:inline-flex;background:var(--surface-variant);border:1px solid var(--outline);border-radius:var(--radius-full);padding:3px;gap:2px">
+        <button data-theme-btn="light" aria-pressed="false" style="appearance:none;border:0;background:transparent;cursor:pointer;padding:6px 12px;border-radius:var(--radius-full);color:var(--muted-foreground);font:inherit;font-size:var(--text-caption-size);font-weight:600">Light</button>
+        <button data-theme-btn="dark" aria-pressed="false" style="appearance:none;border:0;background:transparent;cursor:pointer;padding:6px 12px;border-radius:var(--radius-full);color:var(--muted-foreground);font:inherit;font-size:var(--text-caption-size);font-weight:600">Dark</button>
+        <button data-theme-btn="system" aria-pressed="false" style="appearance:none;border:0;background:transparent;cursor:pointer;padding:6px 12px;border-radius:var(--radius-full);color:var(--muted-foreground);font:inherit;font-size:var(--text-caption-size);font-weight:600">Auto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Flagship design package</div>
+    <h1>A complete design system &amp; product, end to end.</h1>
+    <p>From color tokens to the annotation workspace — every screen is built from one token contract, works in light and dark, and is keyboard-accessible. Start with the system, then explore the live screens.</p>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step-label"><span class="n">1</span><h2>Foundations &amp; documentation</h2><span class="meta">tokens.css · DESIGN_SYSTEM.md</span></div>
+  <div class="grid">
+    <a class="card" href="Design System.html">
+      <div class="preview"><div class="pv pv-tokens"><div class="ramp"><span style="background:#dbe7fe"></span><span style="background:#93b4fd"></span><span style="background:#3b6af5"></span><span style="background:#2563eb"></span><span style="background:#1d4ed8"></span><span style="background:#1e3a8a"></span></div></div></div>
+      <div class="body"><h3>Design System</h3><p>Living style guide: color ramps, semantic tokens in both themes, type scale, spacing, radius, elevation, and motion.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Components.html">
+      <div class="preview"><div class="pv pv-comp"><span class="btn btn-primary btn-sm">Primary</span><span class="btn btn-outline btn-sm">Outline</span><span class="badge badge-success"><span class="dot"></span>Labeled</span><span class="badge badge-warning"><span class="dot"></span>Review</span><span class="chip filter selected">All</span></div></div>
+      <div class="body"><h3>Components</h3><p>28 interactive primitives — buttons, inputs, toggles, tabs, dialogs, menus, toasts, skeletons, empty states, and ⌘K.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-label"><span class="n">2</span><h2>Product screens</h2><span class="meta">light + dark · responsive · interactive</span></div>
+  <div class="grid">
+    <a class="card" href="Annotation Workspace.html">
+      <div class="preview"><div class="pv" style="background:repeating-conic-gradient(#0e1729 0% 25%, #131c30 0% 50%) 50% / 18px 18px;display:grid;place-items:center"><div style="position:relative;width:74%;height:64%;border-radius:6px;background:linear-gradient(180deg,#2b3a55,#3d4a66 45%,#23262e);box-shadow:0 10px 24px -6px rgba(0,0,0,.5)"><span style="position:absolute;left:14%;top:42%;width:30%;height:40%;border:2px solid #3b6af5;border-radius:2px;background:rgba(59,106,245,.16)"></span><span style="position:absolute;left:50%;top:34%;width:34%;height:48%;border:2px solid #10b981;border-radius:2px;background:rgba(16,185,129,.16)"></span><span style="position:absolute;left:50%;top:24%;transform:translateY(-100%);white-space:nowrap;background:#10b981;color:#fff;font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px">truck 94%</span></div></div></div>
+      <div class="body"><h3>Annotation Workspace <span class="badge badge-primary" style="margin-left:4px">Hero</span></h3><p>The flagship: tool rail, live canvas with boxes &amp; polygons, inspector, class manager, status bar, and a ? shortcuts overlay.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Dashboard.html">
+      <div class="preview"><div class="pv pv-card"><div class="pv-bar" style="width:50%;background:var(--primary);opacity:1;height:14px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px"><div style="height:44px;border-radius:6px;background:linear-gradient(135deg,#3b6af5,#8b5cf6)"></div><div style="height:44px;border-radius:6px;background:linear-gradient(135deg,#0d9488,#10b981)"></div></div><div class="pv-bar"></div><div class="pv-bar" style="width:70%"></div></div></div>
+      <div class="body"><h3>Dashboard</h3><p>Projects grid with summary stats, search, filters, sort, per-project progress, and team presence.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Dataset.html">
+      <div class="preview"><div class="pv" style="background:var(--surface-variant);padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-content:start"><div style="aspect-ratio:4/3;border-radius:5px;background:linear-gradient(180deg,#2b3a55,#2a2d35)"></div><div style="aspect-ratio:4/3;border-radius:5px;background:linear-gradient(180deg,#33405c,#2f3138)"></div><div style="aspect-ratio:4/3;border-radius:5px;background:linear-gradient(180deg,#243149,#272a31)"></div><div style="aspect-ratio:4/3;border-radius:5px;background:linear-gradient(180deg,#2b3a55,#2a2d35)"></div><div style="aspect-ratio:4/3;border-radius:5px;background:linear-gradient(180deg,#33405c,#2f3138)"></div><div style="aspect-ratio:4/3;border-radius:5px;background:linear-gradient(180deg,#243149,#272a31)"></div></div></div>
+      <div class="body"><h3>Dataset view</h3><p>Image gallery with mini box previews, upload zone, labeled / unlabeled filters, and bulk selection.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Auth.html">
+      <div class="preview"><div class="pv" style="display:grid;grid-template-columns:1fr 1fr"><div style="background:linear-gradient(135deg,var(--blue-700),var(--violet-700))"></div><div style="background:var(--surface);display:grid;place-items:center;gap:6px;padding:20px"><div class="pv-bar" style="width:80%;height:12px"></div><div class="pv-bar" style="width:80%;height:24px;opacity:.3"></div><div class="pv-bar" style="width:80%;height:24px;opacity:.3"></div><div style="width:80%;height:22px;border-radius:5px;background:var(--primary)"></div></div></div></div>
+      <div class="body"><h3>Auth</h3><p>Split-screen sign in / sign up / reset / verify, with OAuth, password strength, and validation.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Settings.html">
+      <div class="preview"><div class="pv pv-card" style="grid-template-columns:1fr 2fr;display:grid;gap:14px"><div style="display:grid;gap:6px;align-content:start"><div class="pv-bar" style="height:9px;background:var(--primary);opacity:1"></div><div class="pv-bar" style="height:9px"></div><div class="pv-bar" style="height:9px"></div></div><div style="display:grid;gap:8px;align-content:start"><div class="pv-bar" style="width:50%;height:11px"></div><div class="pv-bar"></div><div class="pv-bar" style="width:80%"></div></div></div></div>
+      <div class="body"><h3>Settings</h3><p>Profile, account, appearance (theme + accent), team management, and notifications.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Landing.html">
+      <div class="preview"><div class="pv" style="background:var(--surface);display:grid;place-items:center;gap:8px;padding:20px;text-align:center"><div class="pv-bar" style="width:60%;height:18px;background:linear-gradient(120deg,var(--primary),var(--secondary));opacity:1"></div><div class="pv-bar" style="width:75%;height:8px"></div><div style="display:flex;gap:8px;margin-top:4px"><div style="width:64px;height:22px;border-radius:5px;background:var(--primary)"></div><div style="width:64px;height:22px;border-radius:5px;border:1px solid var(--outline-strong)"></div></div></div></div>
+      <div class="body"><h3>Landing</h3><p>Marketing page — hero, product shot, feature grid, stats band, workflow, CTA, and footer.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Modals & Flows.html">
+      <div class="preview"><div class="pv" style="background:var(--surface-variant);display:grid;place-items:center;padding:18px"><div style="width:78%;background:var(--surface);border:1px solid var(--outline);border-radius:10px;box-shadow:var(--elevation-4);overflow:hidden"><div style="display:flex;align-items:center;gap:7px;padding:11px 12px 8px"><div style="width:22px;height:22px;border-radius:6px;background:var(--primary-container);display:grid;place-items:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div><div class="pv-bar" style="width:46%;height:8px;margin:0"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 10px"><div style="height:30px;border-radius:5px;border:1.5px solid var(--primary);background:var(--primary-subtle)"></div><div style="height:30px;border-radius:5px;border:1px solid var(--outline)"></div></div><div style="display:flex;justify-content:flex-end;gap:6px;padding:8px 12px;background:var(--surface-variant);border-top:1px solid var(--outline)"><div style="width:38px;height:18px;border-radius:5px;border:1px solid var(--outline-strong)"></div><div style="width:46px;height:18px;border-radius:5px;background:var(--primary)"></div></div></div></div></div>
+      <div class="body"><h3>Modals &amp; Flows</h3><p>Export with live format previews, Share, type-to-confirm Delete, and animated Upload progress — all keyboard-accessible.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="Onboarding.html">
+      <div class="preview"><div class="pv" style="background:var(--surface);display:grid;grid-template-columns:auto 1fr;gap:16px;padding:20px;align-items:center"><div style="display:flex;flex-direction:column;gap:0;align-items:center"><div style="width:22px;height:22px;border-radius:50%;background:var(--primary);display:grid;place-items:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--on-primary)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div><div style="width:2px;height:14px;background:var(--primary)"></div><div style="width:22px;height:22px;border-radius:50%;border:2px solid var(--primary);box-shadow:0 0 0 3px var(--primary-subtle);display:grid;place-items:center;color:var(--primary);font-size:10px;font-weight:600">2</div><div style="width:2px;height:14px;background:var(--outline)"></div><div style="width:22px;height:22px;border-radius:50%;border:2px solid var(--outline-strong);color:var(--muted-foreground);display:grid;place-items:center;font-size:10px;font-weight:600">3</div></div><div style="display:grid;gap:8px;align-content:center"><div class="pv-bar" style="width:55%;height:14px;background:var(--foreground);opacity:.85"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px"><div style="height:40px;border-radius:6px;border:1.5px solid var(--primary);background:var(--primary-subtle)"></div><div style="height:40px;border-radius:6px;border:1px solid var(--outline)"></div></div></div></div></div>
+      <div class="body"><h3>Onboarding</h3><p>Four-step create-your-first-project wizard — pick a goal, configure task &amp; classes, upload, and launch.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+    <a class="card" href="System States.html">
+      <div class="preview"><div class="pv" style="background:var(--surface);display:grid;place-items:center;padding:20px"><div style="font-family:var(--font-mono);font-size:50px;font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--foreground);display:flex;align-items:center;gap:4px">4<span style="width:42px;height:50px;border:4px solid var(--primary);border-radius:10px;display:grid;place-items:center"><span style="width:18px;height:15px;border:2px solid var(--primary);border-radius:2px"></span></span>4</div><div style="display:flex;gap:6px;margin-top:14px"><span class="badge badge-neutral" style="font-size:10px">Loading</span><span class="badge badge-warning" style="font-size:10px"><span class="dot"></span>Offline</span><span class="badge badge-destructive" style="font-size:10px">Error</span></div></div></div>
+      <div class="body"><h3>System States</h3><p>Loading skeletons, empty states, 404, error boundary, offline, inline validation, and toasts — zero layout shift.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    </a>
+  </div>
+
+  <div class="note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M11 12h1v4h1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <p><b>How this maps to your repo:</b> these are high-fidelity HTML design artifacts — the visual source of truth. <b>tokens.css</b> drives <code class="mono">tailwind.config.ts</code> (mapping in DESIGN_SYSTEM.md), <b>components.css</b> patterns become your themed shadcn/ui primitives, and each screen is the spec for its Next.js route. The Fabric canvas, Zustand store, and export logic stay — only the chrome around them is restyled.</p>
+  </div>
+
+  <footer>Annotation Studio · Design system v1.0 · Geist + Geist Mono · Light &amp; dark · WCAG AA</footer>
+</div>
+</body>
+</html>

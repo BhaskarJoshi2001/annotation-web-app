@@ -1,0 +1,28 @@
+/* Shared app-shell sidebar — used by Dashboard, Dataset, Settings, etc.
+   Scoped under `.ds .app-sidebar`. Primitives (.btn, .badge, .progress, .avatar)
+   come from ds.css. */
+
+.ds .app-sidebar { background: var(--surface); border-right: 1px solid var(--outline); display: flex; flex-direction: column; padding: var(--space-4) var(--space-3); overflow-y: auto; }
+.ds .app-sidebar .brand { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2) var(--space-5); }
+.ds .app-sidebar .brand-mark { width: 32px; height: 32px; flex: none; }
+.ds .app-sidebar .brand-name b { font-weight: 600; letter-spacing: -0.01em; display: block; font-size: var(--text-label-size); white-space: nowrap; }
+.ds .app-sidebar .brand-name span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+.ds .app-sidebar .nav { display: flex; flex-direction: column; gap: 1px; }
+.ds .app-sidebar .nav a { display: flex; align-items: center; gap: 11px; padding: 8px var(--space-3); border-radius: var(--radius-md); color: var(--muted-foreground); text-decoration: none; font-size: var(--text-label-size); font-weight: 500; transition: all var(--duration-fast) var(--ease-standard); }
+.ds .app-sidebar .nav a svg { width: 18px; height: 18px; flex: none; }
+.ds .app-sidebar .nav a:hover { background: var(--surface-variant); color: var(--foreground); }
+.ds .app-sidebar .nav a.active { background: var(--primary-subtle); color: var(--primary); }
+.ds .app-sidebar .nav a .badge { margin-left: auto; }
+.ds .app-sidebar .nav-group { margin: var(--space-5) var(--space-3) var(--space-2); font-size: 11px; font-weight: 600; color: var(--subtle-foreground); text-transform: uppercase; letter-spacing: 0.06em; }
+.ds .app-sidebar .sidebar-foot { margin-top: auto; padding-top: var(--space-4); }
+.ds .app-sidebar .usage { background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-3); }
+.ds .app-sidebar .usage .urow { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.ds .app-sidebar .userbox { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); cursor: pointer; }
+.ds .app-sidebar .userbox:hover { background: var(--surface-variant); }
+.ds .app-sidebar .userbox .meta { flex: 1; min-width: 0; }
+.ds .app-sidebar .userbox .meta b { font-size: var(--text-label-size); font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds .app-sidebar .userbox .meta span { font-size: var(--text-caption-size); color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+@media (max-width: 880px) {
+  .ds .app-sidebar { display: none; }
+}

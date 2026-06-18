@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Label data your model can trust</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  body { overflow-x: hidden; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 var(--space-6); }
+
+  /* NAV */
+  nav.top { position: sticky; top: 0; z-index: var(--z-sticky); background: color-mix(in srgb, var(--background) 80%, transparent); backdrop-filter: saturate(1.5) blur(14px); border-bottom: 1px solid var(--outline-subtle); }
+  nav.top .inner { display: flex; align-items: center; gap: var(--space-6); height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; font-size: var(--text-title-size); text-decoration: none; color: var(--foreground); }
+  .logo svg { width: 32px; height: 32px; }
+  nav.top .links { display: flex; gap: var(--space-1); margin-left: var(--space-4); }
+  nav.top .links a { padding: 8px 12px; border-radius: var(--radius-md); color: var(--muted-foreground); text-decoration: none; font-size: var(--text-label-size); font-weight: 500; transition: all var(--duration-fast) var(--ease-standard); }
+  nav.top .links a:hover { background: var(--surface-variant); color: var(--foreground); }
+  nav.top .grow { flex: 1; }
+  nav.top .actions { display: flex; align-items: center; gap: var(--space-2); }
+
+  /* HERO */
+  .hero { position: relative; padding: var(--space-20) 0 var(--space-16); text-align: center; overflow: hidden; }
+  .hero .glow { position: absolute; inset: 0; z-index: -1; background:
+      radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%); }
+  .hero .grid-bg { position: absolute; inset: 0; z-index: -1; opacity: .5; background-image: linear-gradient(var(--outline-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--outline-subtle) 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(70% 55% at 50% 0%, #000, transparent 80%); }
+  .pill { display: inline-flex; align-items: center; white-space: nowrap; gap: 8px; padding: 6px 8px 6px 14px; border-radius: var(--radius-full); background: var(--surface); border: 1px solid var(--outline); box-shadow: var(--elevation-1); font-size: var(--text-caption-size); font-weight: 500; color: var(--muted-foreground); margin-bottom: var(--space-6); }
+  .pill .tag { background: var(--primary-container); color: var(--on-primary-container); padding: 2px 8px; border-radius: var(--radius-full); font-weight: 600; }
+  .hero h1 { font-size: clamp(40px, 6vw, 68px); line-height: 1.04; font-weight: 600; letter-spacing: -0.03em; margin: 0 auto var(--space-5); max-width: 16ch; }
+  .hero h1 .accent { background: linear-gradient(120deg, var(--primary), var(--secondary)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero .lede { font-size: clamp(17px, 2vw, 21px); line-height: 1.55; color: var(--muted-foreground); max-width: 56ch; margin: 0 auto var(--space-8); }
+  .hero .cta { display: flex; gap: var(--space-3); justify-content: center; }
+  .hero .trust { margin-top: var(--space-6); font-size: var(--text-caption-size); color: var(--subtle-foreground); }
+
+  /* PRODUCT SHOT */
+  .shot { margin: var(--space-12) auto 0; max-width: 1000px; border-radius: var(--radius-2xl); border: 1px solid var(--outline); box-shadow: var(--elevation-5); overflow: hidden; background: var(--surface); }
+  .shot .chrome { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--outline); background: var(--surface-variant); }
+  .shot .chrome .dots { display: flex; gap: 6px; }
+  .shot .chrome .dots span { width: 11px; height: 11px; border-radius: 50%; background: var(--outline-strong); }
+  .shot .chrome .url { margin-left: 10px; font-size: var(--text-caption-size); color: var(--muted-foreground); font-family: var(--font-mono); }
+  .shot .canvas { position: relative; height: 460px; display: grid; grid-template-columns: 56px 1fr 280px; }
+  .shot .rail { background: var(--surface); border-right: 1px solid var(--outline); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
+  .shot .rail .t { width: 38px; height: 38px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--muted-foreground); }
+  .shot .rail .t.on { background: var(--primary); color: var(--on-primary); }
+  .shot .rail .t svg { width: 18px; height: 18px; }
+  .shot .view { position: relative; overflow: hidden; background: repeating-conic-gradient(var(--surface-sunken) 0% 25%, var(--background) 0% 50%) 50% / 20px 20px; display: grid; place-items: center; }
+  [data-theme="dark"] .shot .view { background: repeating-conic-gradient(#0c1322 0% 25%, #0a101e 0% 50%) 50% / 20px 20px; }
+  .shot .pic { position: relative; width: 460px; height: 300px; border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--elevation-3); }
+  .shot .pic .sc { position: absolute; inset: 0; background: linear-gradient(180deg,#2b3a55,#3d4a66 40%,#585c66 52%,#2a2d35); }
+  .shot .mb { position: absolute; border: 2px solid var(--bc); border-radius: 2px; }
+  .shot .mb::after { content:""; position:absolute; inset:0; background:var(--bc); opacity:.16; }
+  .shot .mb .l { position: absolute; top: -19px; left: -2px; height: 17px; padding: 0 6px; background: var(--bc); color: #fff; font-size: 10px; font-weight: 600; border-radius: 3px; display: flex; align-items: center; white-space: nowrap; }
+  .shot .insp { background: var(--surface); border-left: 1px solid var(--outline); padding: 14px; }
+  .shot .insp .ih { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--subtle-foreground); margin-bottom: 10px; }
+  .shot .insp .ir { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm); margin-bottom: 2px; }
+  .shot .insp .ir.on { background: var(--primary-subtle); }
+  .shot .insp .ir .sw { width: 11px; height: 11px; border-radius: 3px; }
+  .shot .insp .ir .nm { font-size: var(--text-label-size); font-weight: 500; flex: 1; }
+  .shot .insp .ir .dim { font-size: 10px; font-family: var(--font-mono); color: var(--muted-foreground); }
+
+  /* LOGOS */
+  .logos-strip { padding: var(--space-12) 0; text-align: center; }
+  .logos-strip .lbl { font-size: var(--text-caption-size); color: var(--subtle-foreground); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--space-6); }
+  .logos-strip .row { display: flex; flex-wrap: wrap; gap: var(--space-10); justify-content: center; align-items: center; opacity: .65; font-weight: 700; font-size: var(--text-title-size); letter-spacing: -0.01em; color: var(--muted-foreground); }
+
+  /* FEATURES */
+  section.feat { padding: var(--space-20) 0; }
+  .sec-head { text-align: center; max-width: 60ch; margin: 0 auto var(--space-12); }
+  .sec-head .eyebrow { color: var(--primary); font-weight: 600; font-size: var(--text-caption-size); letter-spacing: 0.08em; text-transform: uppercase; }
+  .sec-head h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; margin: var(--space-3) 0; }
+  .sec-head p { font-size: var(--text-body-lg-size); color: var(--muted-foreground); margin: 0; }
+
+  .fgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
+  .fcard { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); padding: var(--space-6); box-shadow: var(--elevation-1); transition: transform var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard); }
+  .fcard:hover { transform: translateY(-3px); box-shadow: var(--elevation-3); }
+  .fcard .ic { width: 44px; height: 44px; border-radius: var(--radius-lg); display: grid; place-items: center; margin-bottom: var(--space-4); }
+  .fcard .ic svg { width: 22px; height: 22px; }
+  .fcard h3 { font-size: var(--text-title-size); font-weight: 600; margin: 0 0 var(--space-2); }
+  .fcard p { color: var(--muted-foreground); margin: 0; font-size: var(--text-body-size); line-height: 1.6; }
+  .fcard.wide { grid-column: span 2; display: flex; gap: var(--space-6); align-items: center; }
+  .fcard.wide .body { flex: 1; }
+  .fcard.wide .visual { flex: none; width: 180px; height: 130px; border-radius: var(--radius-lg); background: var(--surface-variant); border: 1px solid var(--outline); position: relative; overflow: hidden; }
+
+  /* STATS BAND */
+  .band { background: var(--surface-inverse); color: var(--on-surface-inverse); border-radius: var(--radius-3xl); padding: var(--space-16) var(--space-12); margin: 0 var(--space-6); position: relative; overflow: hidden; }
+  .band .glow2 { position: absolute; inset: 0; background: radial-gradient(60% 120% at 80% 0%, color-mix(in srgb, var(--primary) 40%, transparent), transparent 60%); opacity: .5; }
+  .band .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-8); position: relative; text-align: center; }
+  .band .s b { font-size: 44px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; display: block; margin-bottom: 4px; }
+  .band .s span { color: rgba(255,255,255,.6); font-size: var(--text-label-size); }
+  [data-theme="dark"] .band .s span { color: var(--muted-foreground); }
+
+  /* WORKFLOW */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); counter-reset: s; }
+  .step { position: relative; padding-top: var(--space-6); }
+  .step::before { counter-increment: s; content: "0" counter(s); font-family: var(--font-mono); font-size: var(--text-caption-size); font-weight: 600; color: var(--primary); }
+  .step h3 { font-size: var(--text-title-size); font-weight: 600; margin: var(--space-2) 0; }
+  .step p { color: var(--muted-foreground); margin: 0; line-height: 1.6; }
+  .step .line { position: absolute; top: 30px; left: 40px; right: -24px; height: 1px; background: var(--outline); }
+  .step:last-child .line { display: none; }
+
+  /* CTA */
+  .cta-band { text-align: center; padding: var(--space-20) 0; }
+  .cta-band h2 { font-size: clamp(32px, 5vw, 52px); line-height: 1.08; font-weight: 600; letter-spacing: -0.025em; margin: 0 0 var(--space-4); max-width: 18ch; margin-inline: auto; }
+  .cta-band p { font-size: var(--text-body-lg-size); color: var(--muted-foreground); margin: 0 0 var(--space-8); }
+
+  /* FOOTER */
+  footer { border-top: 1px solid var(--outline); padding: var(--space-12) 0 var(--space-8); }
+  footer .cols { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: var(--space-8); margin-bottom: var(--space-10); }
+  footer .col h4 { font-size: var(--text-caption-size); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--subtle-foreground); margin: 0 0 var(--space-4); }
+  footer .col a { display: block; color: var(--muted-foreground); text-decoration: none; font-size: var(--text-label-size); padding: 5px 0; transition: color var(--duration-fast); }
+  footer .col a:hover { color: var(--foreground); }
+  footer .about p { color: var(--muted-foreground); font-size: var(--text-label-size); line-height: 1.6; max-width: 32ch; margin: var(--space-3) 0 0; }
+  footer .bottom { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-6); border-top: 1px solid var(--outline-subtle); color: var(--muted-foreground); font-size: var(--text-caption-size); }
+
+  @media (max-width: 900px) {
+    nav.top .links { display: none; }
+    .fgrid, .steps, .band .grid, footer .cols { grid-template-columns: 1fr 1fr; }
+    .fcard.wide { grid-column: span 2; flex-direction: column; }
+    .shot .canvas { grid-template-columns: 56px 1fr; } .shot .insp { display: none; }
+  }
+  @media (max-width: 600px) { .fgrid, .steps, .band .grid, footer .cols { grid-template-columns: 1fr; } .hero .cta { flex-direction: column; } }
+</style>
+</head>
+<body>
+<!-- NAV -->
+<nav class="top">
+  <div class="wrap inner">
+    <a href="Landing.html" class="logo">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+        <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="var(--on-primary)" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+        <rect x="6" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+        <rect x="6" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+      </svg>
+      Annotation Studio
+    </a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#">Pricing</a>
+      <a href="#">Docs</a>
+    </div>
+    <div class="grow"></div>
+    <div class="actions">
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <a href="Auth.html" class="btn btn-ghost">Sign in</a>
+      <a href="Auth.html" class="btn btn-primary">Start free</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="glow"></div>
+  <div class="grid-bg"></div>
+  <div class="wrap">
+    <span class="pill"><span class="tag">New</span> Model-assisted labeling is here</span>
+    <h1>Label data your model can <span class="accent">actually trust.</span></h1>
+    <p class="lede">The annotation platform for computer-vision teams. Draw bounding boxes, polygons, and keypoints, review at scale, and export to COCO &amp; YOLO — without the spreadsheet chaos.</p>
+    <div class="cta">
+      <a href="Auth.html" class="btn btn-primary btn-xl">Start free<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a href="Annotation Workspace.html" class="btn btn-outline btn-xl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z" stroke-linejoin="round"/></svg>See it live</a>
+    </div>
+    <div class="trust">No credit card required · 14-day Pro trial · SOC 2 Type II</div>
+
+    <!-- product shot -->
+    <div class="shot">
+      <div class="chrome"><div class="dots"><span></span><span></span><span></span></div><span class="url">studio.acmevision.ai/traffic-q3/frame_0428</span></div>
+      <div class="canvas">
+        <div class="rail">
+          <div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 3l7.5 18 2.3-7.2L21 11.5z"/></svg></div>
+          <div class="t on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1.5" stroke-dasharray="3 2.5"/></svg></div>
+          <div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 5.5-3 10.5H7L4 8.5z"/></svg></div>
+          <div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.5" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke-linecap="round"/></svg></div>
+        </div>
+        <div class="view">
+          <div class="pic">
+            <div class="sc"></div>
+            <span class="mb" style="--bc:#3b6af5;left:12%;top:46%;width:24%;height:34%"><span class="l">car 98%</span></span>
+            <span class="mb" style="--bc:#10b981;left:46%;top:40%;width:30%;height:42%"><span class="l">truck 94%</span></span>
+            <span class="mb" style="--bc:#8b5cf6;left:80%;top:50%;width:10%;height:30%"><span class="l">person</span></span>
+          </div>
+        </div>
+        <div class="insp">
+          <div class="ih">Annotations · 3</div>
+          <div class="ir on"><span class="sw" style="background:#3b6af5"></span><span class="nm">Car</span><span class="dim">150×96</span></div>
+          <div class="ir"><span class="sw" style="background:#10b981"></span><span class="nm">Truck</span><span class="dim">176×108</span></div>
+          <div class="ir"><span class="sw" style="background:#8b5cf6"></span><span class="nm">Person</span><span class="dim">42×96</span></div>
+          <div class="ih" style="margin-top:18px">Classes · 6</div>
+          <div class="ir"><span class="sw" style="background:#f59e0b"></span><span class="nm">Truck</span><span class="dim">1</span></div>
+          <div class="ir"><span class="sw" style="background:#ec4899"></span><span class="nm">Traffic light</span><span class="dim">0</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- LOGOS -->
+<div class="logos-strip wrap">
+  <div class="lbl">Trusted by vision teams at</div>
+  <div class="row"><span>NORTHBEAM</span><span>VECTRA</span><span>OAKRIDGE AI</span><span>HELIX</span><span>SENTRA</span></div>
+</div>
+
+<!-- FEATURES -->
+<section class="feat wrap" id="features">
+  <div class="sec-head">
+    <div class="eyebrow">Everything in one canvas</div>
+    <h2>Built for the messy reality of real datasets</h2>
+    <p>From first upload to production export, every step lives in one fast, keyboard-driven workspace.</p>
+  </div>
+  <div class="fgrid">
+    <div class="fcard">
+      <div class="ic" style="background:var(--primary-container);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1.5" stroke-dasharray="3 2.5"/></svg></div>
+      <h3>Boxes, polygons &amp; keypoints</h3><p>Pixel-precise tools with snapping, magnetic edges, and sub-pixel nudging. Switch tools without leaving the keyboard.</p>
+    </div>
+    <div class="fcard">
+      <div class="ic" style="background:var(--secondary-container);color:var(--secondary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/></svg></div>
+      <h3>Model-assisted labeling</h3><p>Pre-label with your own model or our foundation detector, then correct instead of starting from scratch. 60% faster.</p>
+    </div>
+    <div class="fcard">
+      <div class="ic" style="background:var(--success-container);color:var(--success)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+      <h3>Review workflows</h3><p>Assign, review, and approve in stages. Catch conflicts before they reach training, with full annotation history.</p>
+    </div>
+    <div class="fcard wide">
+      <div class="body">
+        <div class="ic" style="background:var(--warning-container);color:var(--warning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>
+        <h3>Export to any format, instantly</h3><p>COCO, YOLO, Pascal VOC, CreateML — one click, versioned and reproducible. Pipe straight into your training jobs via the API.</p>
+      </div>
+      <div class="visual">
+        <div style="position:absolute;inset:14px;display:flex;flex-direction:column;gap:7px;font-family:var(--font-mono);font-size:10px;color:var(--muted-foreground)">
+          <span style="color:var(--primary)">{ "annotations": [</span>
+          <span style="padding-left:12px">{ "bbox": [120,250,150,96],</span>
+          <span style="padding-left:24px">"category": "car" },</span>
+          <span style="padding-left:12px">{ "bbox": [470,236,176,108],</span>
+          <span style="padding-left:24px">"category": "truck" }</span>
+          <span style="color:var(--primary)">] }</span>
+        </div>
+      </div>
+    </div>
+    <div class="fcard">
+      <div class="ic" style="background:var(--destructive-container);color:var(--destructive)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/><path d="M3 6h.01M3 12h.01M3 18h.01" /></svg></div>
+      <h3>Keyboard-first &amp; ⌘K</h3><p>Every action has a shortcut. A command palette gets you anywhere in two keystrokes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAND -->
+<div class="band">
+  <div class="glow2"></div>
+  <div class="grid">
+    <div class="s"><b>312M+</b><span>annotations labeled</span></div>
+    <div class="s"><b>60%</b><span>faster with AI assist</span></div>
+    <div class="s"><b>99.2%</b><span>label accuracy</span></div>
+    <div class="s"><b>4,000+</b><span>vision teams</span></div>
+  </div>
+</div>
+
+<!-- WORKFLOW -->
+<section class="feat wrap" id="workflow">
+  <div class="sec-head">
+    <div class="eyebrow">From upload to model in 3 steps</div>
+    <h2>A workflow your whole team can follow</h2>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="line"></div><h3>Upload &amp; organize</h3><p>Drag in images or sync from S3 / GCS. Auto-dedup, group, and split into train / val.</p></div>
+    <div class="step"><div class="line"></div><h3>Label &amp; review</h3><p>Pre-label with AI, correct on the canvas, then route to reviewers with one click.</p></div>
+    <div class="step"><h3>Export &amp; train</h3><p>Export to COCO or YOLO, or pull a versioned dataset straight from the API.</p></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-band wrap">
+  <h2>Ship your detector a month early.</h2>
+  <p>Start free today — bring your first 5,000 images on us.</p>
+  <div class="hero cta" style="padding:0">
+    <a href="Auth.html" class="btn btn-primary btn-xl">Create your workspace<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    <a href="Dashboard.html" class="btn btn-outline btn-xl">Explore the demo</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div class="col about">
+        <a href="Landing.html" class="logo" style="font-size:var(--text-title-size)">
+          <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+            <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="var(--on-primary)" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+            <rect x="6" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+            <rect x="6" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+          </svg>
+          Annotation Studio
+        </a>
+        <p>The annotation platform for computer-vision teams who care about data quality.</p>
+      </div>
+      <div class="col"><h4>Product</h4><a href="#features">Features</a><a href="#">Pricing</a><a href="#">Changelog</a><a href="#">Roadmap</a></div>
+      <div class="col"><h4>Resources</h4><a href="#">Docs</a><a href="#">API reference</a><a href="#">Guides</a><a href="#">Status</a></div>
+      <div class="col"><h4>Company</h4><a href="#">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
+    </div>
+    <div class="bottom"><span>© 2026 Annotation Studio, Inc.</span><span>Privacy · Terms · SOC 2 Type II</span></div>
+  </div>
+</footer>
+
+<script>
+  const $ = (s,r=document)=>r.querySelector(s);
+  function syncThemeIcon(){ const d=window.ASTheme.resolved()==="dark"; $("#themeIcon").innerHTML = d?'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>':'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'; }
+  $("#themeBtn").addEventListener("click", ()=>window.ASTheme.set(window.ASTheme.resolved()==="dark"?"light":"dark"));
+  window.addEventListener("themechange", syncThemeIcon);
+  syncThemeIcon();
+</script>
+</body>
+</html>

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annotation Studio — Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="components.css" />
+<script src="theme.js"></script>
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .ws { display: grid; grid-template-rows: 56px 1fr 34px; grid-template-columns: 60px 1fr 320px; height: 100vh;
+        grid-template-areas: "top top top" "rail canvas inspect" "rail status status"; background: var(--background); }
+
+  /* ---------- TOP BAR ---------- */
+  .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+            padding: 0 var(--space-4); background: var(--surface); border-bottom: 1px solid var(--outline); z-index: var(--z-sticky); }
+  .top-l, .top-c, .top-r { display: flex; align-items: center; gap: var(--space-2); }
+  .top-l { gap: var(--space-3); }
+  .logo { width: 30px; height: 30px; flex: none; }
+  .crumb { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-label-size); color: var(--muted-foreground); white-space: nowrap; }
+  .crumb a { color: var(--muted-foreground); text-decoration: none; font-weight: 500; }
+  .crumb a:hover { color: var(--foreground); }
+  .crumb b { color: var(--foreground); font-weight: 600; }
+  .crumb .sep { color: var(--subtle-foreground); }
+  .imgswitch { display: flex; align-items: center; gap: 2px; background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-md); padding: 2px; }
+  .imgswitch .idx { font-size: var(--text-caption-size); font-family: var(--font-mono); color: var(--muted-foreground); padding: 0 8px; min-width: 78px; text-align: center; white-space: nowrap; }
+  .savechip { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-caption-size); color: var(--success); font-weight: 600; padding: 0 6px; }
+  .savechip .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+  .savechip.saving { color: var(--muted-foreground); }
+  .savechip.saving .pip { background: var(--warning); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .zoomctl { display: flex; align-items: center; gap: 2px; background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-md); padding: 2px; }
+  .zoomctl .pct { font-size: var(--text-caption-size); font-family: var(--font-mono); color: var(--foreground); font-weight: 500; min-width: 46px; text-align: center; cursor: pointer; }
+
+  /* ---------- TOOL RAIL ---------- */
+  .rail { grid-area: rail; background: var(--surface); border-right: 1px solid var(--outline); display: flex; flex-direction: column; align-items: center; padding: var(--space-3) 0; gap: 4px; }
+  .rail .group { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+  .rail .sep { width: 28px; height: 1px; background: var(--outline); margin: var(--space-2) 0; }
+  .tool { position: relative; width: 42px; height: 42px; border-radius: var(--radius-md); border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; display: grid; place-items: center; transition: all var(--duration-fast) var(--ease-standard); }
+  .tool:hover { background: var(--surface-variant); color: var(--foreground); }
+  .tool.active { background: var(--primary); color: var(--on-primary); box-shadow: var(--elevation-1); }
+  .tool:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .tool svg { width: 20px; height: 20px; }
+  .tool .tt { position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%) translateX(-4px); background: var(--surface-inverse); color: var(--on-surface-inverse); padding: 6px 10px; border-radius: var(--radius-sm); font-size: var(--text-caption-size); font-weight: 500; white-space: nowrap; opacity: 0; pointer-events: none; transition: all var(--duration-fast) var(--ease-standard); box-shadow: var(--elevation-3); z-index: var(--z-tooltip); display: flex; align-items: center; gap: 8px; }
+  .tool .tt kbd { font-family: var(--font-mono); font-size: 10px; background: rgba(255,255,255,.14); padding: 1px 5px; border-radius: 3px; }
+  .tool:hover .tt { opacity: 1; transform: translateY(-50%) translateX(0); }
+  .rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+
+  /* ---------- CANVAS ---------- */
+  .canvas-wrap { grid-area: canvas; position: relative; overflow: hidden; background:
+      repeating-conic-gradient(var(--surface-sunken) 0% 25%, var(--background) 0% 50%) 50% / 22px 22px; }
+  [data-theme="dark"] .canvas-wrap { background: repeating-conic-gradient(#0c1322 0% 25%, #0a101e 0% 50%) 50% / 22px 22px; }
+  .stage { position: absolute; inset: 0; display: grid; place-items: center; }
+  .photo { position: relative; width: 760px; height: 506px; border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--elevation-4); transition: transform var(--duration-base) var(--ease-standard); }
+  /* photographic placeholder: dusk street scene, abstract */
+  .photo .scene { position: absolute; inset: 0; background:
+      linear-gradient(180deg, #2b3a55 0%, #3d4a66 22%, #5a6377 38%, #6b6f7a 46%, #585c66 50%, #3f434c 62%, #2a2d35 100%); }
+  .photo .sun { position: absolute; top: 14%; left: 60%; width: 120px; height: 120px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,229,180,.9), rgba(255,200,140,.2) 60%, transparent 72%); filter: blur(2px); }
+  .photo .road { position: absolute; bottom: 0; left: 0; right: 0; height: 52%; background:
+      linear-gradient(180deg, #50535c 0%, #33353c 60%, #25272d 100%); clip-path: polygon(0 36%, 100% 36%, 76% 100%, 24% 100%); }
+  .photo .lane { position: absolute; bottom: 0; left: 50%; width: 6px; height: 50%; transform: translateX(-50%);
+      background: repeating-linear-gradient(180deg, rgba(240,228,170,.85) 0 28px, transparent 28px 56px); clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%); }
+  .photo .bldg { position: absolute; bottom: 38%; background: #2d3340; }
+  .photo .b1 { left: 4%; width: 120px; height: 130px; background: linear-gradient(180deg,#39414f,#2a3038); }
+  .photo .b2 { left: 17%; width: 90px; height: 90px; background: linear-gradient(180deg,#434b59,#313742); }
+  .photo .b3 { right: 5%; width: 140px; height: 160px; background: linear-gradient(180deg,#333a47,#262b34); }
+  .photo .b4 { right: 23%; width: 80px; height: 100px; background: linear-gradient(180deg,#3c4350,#2c313b); }
+  .photo .win { position: absolute; background-image: radial-gradient(rgba(255,215,150,.5) 1px, transparent 1.4px); background-size: 14px 18px; opacity: .55; }
+  .photo .grain { position: absolute; inset: 0; opacity: .05; background-image: radial-gradient(rgba(255,255,255,.8) .5px, transparent .6px); background-size: 3px 3px; mix-blend-mode: overlay; }
+  .photo .vign { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px rgba(0,0,0,.4); }
+
+  /* annotation overlay (SVG-free boxes) */
+  .overlay { position: absolute; inset: 0; }
+  .box { position: absolute; border: 2px solid var(--bc); border-radius: 2px; cursor: pointer; transition: box-shadow var(--duration-fast) var(--ease-standard); }
+  .box::before { content: ""; position: absolute; inset: 0; background: var(--bc); opacity: .14; transition: opacity var(--duration-fast); }
+  .box:hover::before { opacity: .24; }
+  .box .tag { position: absolute; top: -23px; left: -2px; height: 20px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; background: var(--bc); color: #fff; font-size: 11px; font-weight: 600; border-radius: var(--radius-xs); white-space: nowrap; font-family: var(--font-sans); box-shadow: var(--elevation-1); }
+  .box .tag .pc { font-family: var(--font-mono); opacity: .8; font-weight: 500; }
+  .box.selected { box-shadow: 0 0 0 1px var(--surface), 0 0 0 3px var(--bc); }
+  .box.selected::before { opacity: .08; }
+  .box .h { position: absolute; width: 9px; height: 9px; background: var(--surface); border: 2px solid var(--bc); border-radius: 2px; opacity: 0; transition: opacity var(--duration-fast); }
+  .box.selected .h { opacity: 1; }
+  .box .h.nw { top: -5px; left: -5px; cursor: nwse-resize; } .box .h.ne { top: -5px; right: -5px; cursor: nesw-resize; }
+  .box .h.sw { bottom: -5px; left: -5px; cursor: nesw-resize; } .box .h.se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+  .box .h.n { top: -5px; left: 50%; margin-left: -4px; cursor: ns-resize; } .box .h.s { bottom: -5px; left: 50%; margin-left: -4px; cursor: ns-resize; }
+  .box .h.w { left: -5px; top: 50%; margin-top: -4px; cursor: ew-resize; } .box .h.e { right: -5px; top: 50%; margin-top: -4px; cursor: ew-resize; }
+  /* polygon */
+  .poly { position: absolute; inset: 0; pointer-events: none; }
+  .poly polygon { fill: var(--bc); fill-opacity: .16; stroke: var(--bc); stroke-width: 2; cursor: pointer; pointer-events: all; }
+  .poly circle { fill: var(--surface); stroke: var(--bc); stroke-width: 2; }
+
+  .canvas-float { position: absolute; z-index: var(--z-raised); display: flex; gap: 6px; }
+  .cf-bl { left: var(--space-4); bottom: var(--space-4); }
+  .cf-tr { right: var(--space-4); top: var(--space-4); }
+  .float-card { background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--outline); border-radius: var(--radius-lg); box-shadow: var(--elevation-2); display: flex; align-items: center; padding: 4px; gap: 2px; }
+
+  /* ---------- INSPECTOR ---------- */
+  .inspect { grid-area: inspect; background: var(--surface); border-left: 1px solid var(--outline); display: flex; flex-direction: column; min-height: 0; }
+  .insp-tabs { display: flex; padding: var(--space-2) var(--space-3) 0; gap: var(--space-1); border-bottom: 1px solid var(--outline); }
+  .insp-tab { flex: 1; appearance: none; border: 0; background: transparent; cursor: pointer; padding: 9px 4px 11px; font: inherit; font-size: var(--text-label-size); font-weight: 600; color: var(--muted-foreground); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all var(--duration-fast) var(--ease-standard); }
+  .insp-tab:hover { color: var(--foreground); }
+  .insp-tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+  .insp-panel { flex: 1; overflow-y: auto; min-height: 0; }
+  .insp-panel[hidden] { display: none; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-4) var(--space-2); }
+  .panel-head .t { font-size: var(--text-caption-size); font-weight: 600; color: var(--subtle-foreground); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+  .panel-head .ct { font-size: var(--text-caption-size); font-family: var(--font-mono); color: var(--muted-foreground); white-space: nowrap; }
+
+  .ann { display: flex; align-items: center; gap: var(--space-3); padding: 9px var(--space-4); cursor: pointer; border-left: 2px solid transparent; transition: background var(--duration-fast) var(--ease-standard); }
+  .ann:hover { background: var(--surface-variant); }
+  .ann.selected { background: var(--primary-subtle); border-left-color: var(--primary); }
+  .ann .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .ann .meta { flex: 1; min-width: 0; }
+  .ann .meta .nm { font-size: var(--text-label-size); font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .ann .meta .nm .type { color: var(--subtle-foreground); }
+  .ann .meta .dim { font-size: 11px; font-family: var(--font-mono); color: var(--muted-foreground); margin-top: 1px; white-space: nowrap; }
+  .ann .act { opacity: 0; display: flex; gap: 2px; transition: opacity var(--duration-fast); }
+  .ann:hover .act, .ann.selected .act { opacity: 1; }
+
+  .prop-group { padding: var(--space-4); border-bottom: 1px solid var(--outline-subtle); }
+  .prop-group .gh { font-size: var(--text-caption-size); font-weight: 600; color: var(--subtle-foreground); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--space-3); }
+  .prop-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .prop { background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-sm); padding: 6px 9px; }
+  .prop label { font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; display: block; }
+  .prop .v { font-size: var(--text-label-size); font-family: var(--font-mono); font-weight: 500; }
+
+  .class-item { display: flex; align-items: center; gap: var(--space-3); padding: 8px var(--space-4); cursor: pointer; transition: background var(--duration-fast); }
+  .class-item:hover { background: var(--surface-variant); }
+  .class-item .sw { width: 14px; height: 14px; border-radius: var(--radius-xs); flex: none; box-shadow: var(--elevation-1); }
+  .class-item .nm { flex: 1; font-size: var(--text-label-size); font-weight: 500; }
+  .class-item .kbd { font-family: var(--font-mono); font-size: 11px; color: var(--subtle-foreground); }
+  .class-item .ct { font-size: 11px; font-family: var(--font-mono); color: var(--muted-foreground); }
+
+  /* ---------- STATUS BAR ---------- */
+  .status { grid-area: status; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: 0 var(--space-4); background: var(--surface); border-top: 1px solid var(--outline); font-size: var(--text-caption-size); }
+  .status .grp { display: flex; align-items: center; gap: var(--space-4); }
+  .status .item { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); white-space: nowrap; }
+  .status .item svg { width: 13px; height: 13px; }
+  .status .item .mono { color: var(--foreground); }
+  .status .vsep { width: 1px; height: 14px; background: var(--outline); }
+
+  /* ---------- SHORTCUTS OVERLAY ---------- */
+  .kbd-scrim { position: fixed; inset: 0; background: var(--overlay-scrim); backdrop-filter: blur(3px); z-index: var(--z-modal); display: grid; place-items: center; padding: var(--space-6); opacity: 0; transition: opacity var(--duration-base) var(--ease-standard); }
+  .kbd-scrim.open { opacity: 1; }
+  .kbd-modal { width: 100%; max-width: 620px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-2xl); box-shadow: var(--elevation-5); transform: scale(0.97) translateY(8px); transition: transform var(--duration-slow) var(--ease-emphasized); overflow: hidden; }
+  .kbd-scrim.open .kbd-modal { transform: none; }
+  .kbd-modal header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--outline); }
+  .kbd-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--space-8); padding: var(--space-6); }
+  .kbd-sec h4 { margin: 0 0 var(--space-2); font-size: var(--text-caption-size); text-transform: uppercase; letter-spacing: 0.06em; color: var(--subtle-foreground); }
+  .kbd-line { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--outline-subtle); }
+  .kbd-line span { font-size: var(--text-label-size); }
+  .kbd-line .keys { display: flex; gap: 4px; }
+
+  .ghost-cursor { position: fixed; pointer-events: none; z-index: var(--z-overlay); font-size: 11px; font-family: var(--font-mono); background: var(--primary); color: var(--on-primary); padding: 2px 6px; border-radius: var(--radius-xs); transform: translate(12px, 12px); opacity: 0; transition: opacity var(--duration-fast); }
+
+  @media (max-width: 1100px) {
+    .ws { grid-template-columns: 60px 1fr 0; }
+    .inspect { position: absolute; right: 0; top: 56px; bottom: 34px; width: 320px; transform: translateX(100%); transition: transform var(--duration-slow) var(--ease-emphasized); z-index: var(--z-drawer); box-shadow: var(--elevation-4); }
+    .inspect.open { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="ws" id="ws">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="top-l">
+      <svg class="logo" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="1" y="1" width="34" height="34" rx="9" fill="var(--primary)"/>
+        <rect x="8.5" y="8.5" width="19" height="19" rx="3.5" stroke="var(--on-primary)" stroke-width="2" stroke-dasharray="0.5 4.4" stroke-linecap="round"/>
+        <rect x="6" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="6" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+        <rect x="6" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/><rect x="25" y="25" width="5" height="5" rx="1.5" fill="var(--on-primary)"/>
+      </svg>
+      <div class="crumb"><a href="Dashboard.html">Traffic — Q3 dashcam</a><span class="sep">›</span><b>frame_0428.jpg</b></div>
+    </div>
+    <div class="top-c">
+      <div class="imgswitch">
+        <button class="icon-btn sm" id="prevImg" aria-label="Previous image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span class="idx" id="imgIdx">428 / 2480</span>
+        <button class="icon-btn sm" id="nextImg" aria-label="Next image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <span class="savechip" id="saveChip"><span class="pip"></span>Saved</span>
+    </div>
+    <div class="top-r">
+      <div class="zoomctl">
+        <button class="icon-btn sm" id="zoomOut" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14" stroke-linecap="round"/></svg></button>
+        <span class="pct" id="zoomPct" title="Reset zoom">100%</span>
+        <button class="icon-btn sm" id="zoomIn" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></button>
+      </div>
+      <button class="btn btn-outline btn-sm" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>Export</button>
+      <span class="vsep" style="width:1px;height:24px;background:var(--outline)"></span>
+      <button class="icon-btn" id="helpBtn" aria-label="Keyboard shortcuts" title="Shortcuts (?)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .8-1 1.7M12 17h.01" stroke-linecap="round"/></svg></button>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"><svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <span class="avatar sm" style="background:var(--blue-500);color:#fff;margin-left:4px">AM</span>
+    </div>
+  </header>
+
+  <!-- TOOL RAIL -->
+  <nav class="rail" aria-label="Tools">
+    <div class="group" id="toolGroup">
+      <button class="tool" data-tool="select" aria-label="Select"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 3l7.5 18 2.3-7.2L21 11.5z"/></svg><span class="tt">Select &amp; move<kbd>V</kbd></span></button>
+      <button class="tool active" data-tool="bbox" aria-label="Bounding box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1.5" stroke-dasharray="3 2.5"/></svg><span class="tt">Bounding box<kbd>B</kbd></span></button>
+      <button class="tool" data-tool="polygon" aria-label="Polygon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 5.5-3 10.5H7L4 8.5z"/><circle cx="12" cy="3" r="1.6" fill="currentColor"/><circle cx="20" cy="8.5" r="1.6" fill="currentColor"/><circle cx="4" cy="8.5" r="1.6" fill="currentColor"/></svg><span class="tt">Polygon<kbd>P</kbd></span></button>
+      <button class="tool" data-tool="point" aria-label="Keypoint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.5" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke-linecap="round"/></svg><span class="tt">Keypoint<kbd>K</kbd></span></button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <button class="tool" data-tool="pan" aria-label="Pan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V12m0-1a1.5 1.5 0 0 1 3 0v4a5 5 0 0 1-5 5h-2.2a4 4 0 0 1-3-1.3L4 15.5a1.6 1.6 0 0 1 2.4-2L8 15"/></svg><span class="tt">Pan canvas<kbd>H</kbd></span></button>
+      <button class="tool" data-tool="zoom" aria-label="Zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6" stroke-linecap="round"/></svg><span class="tt">Zoom<kbd>Z</kbd></span></button>
+    </div>
+    <div class="rail-foot">
+      <button class="tool" data-tool="ai" aria-label="Smart label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/><path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg><span class="tt">Auto-label (AI)<kbd>A</kbd></span></button>
+    </div>
+  </nav>
+
+  <!-- CANVAS -->
+  <main class="canvas-wrap" id="canvasWrap">
+    <div class="stage">
+      <div class="photo" id="photo">
+        <div class="scene"></div>
+        <div class="sun"></div>
+        <div class="bldg b1"><div class="win" style="inset:14px 12px 18px 12px"></div></div>
+        <div class="bldg b2"><div class="win" style="inset:10px 10px 14px 10px"></div></div>
+        <div class="bldg b3"><div class="win" style="inset:16px 14px 20px 14px"></div></div>
+        <div class="bldg b4"><div class="win" style="inset:10px 10px 14px 10px"></div></div>
+        <div class="road"></div>
+        <div class="lane"></div>
+        <div class="vign"></div>
+        <div class="grain"></div>
+        <!-- annotation overlay -->
+        <div class="overlay" id="overlay"></div>
+        <svg class="poly" id="polyLayer" viewBox="0 0 760 506" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+
+    <div class="canvas-float cf-tr">
+      <div class="float-card">
+        <button class="icon-btn sm" id="fitBtn" title="Fit to screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+        <button class="icon-btn sm active" id="gridToggle" title="Toggle grid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></button>
+        <button class="icon-btn sm" id="eyeToggle" title="Hide annotations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+  </main>
+
+  <!-- INSPECTOR -->
+  <aside class="inspect" id="inspect">
+    <div class="insp-tabs" role="tablist">
+      <button class="insp-tab" role="tab" aria-selected="true" data-panel="annotations">Annotations</button>
+      <button class="insp-tab" role="tab" aria-selected="false" data-panel="properties">Properties</button>
+      <button class="insp-tab" role="tab" aria-selected="false" data-panel="classes">Classes</button>
+    </div>
+
+    <!-- Annotations -->
+    <div class="insp-panel" data-panel="annotations">
+      <div class="panel-head"><span class="t">On this image</span><span class="ct" id="annCount">5 objects</span></div>
+      <div id="annList"></div>
+    </div>
+
+    <!-- Properties -->
+    <div class="insp-panel" data-panel="properties" hidden>
+      <div class="panel-head"><span class="t">Selected object</span></div>
+      <div id="propBody"></div>
+    </div>
+
+    <!-- Classes -->
+    <div class="insp-panel" data-panel="classes" hidden>
+      <div class="panel-head"><span class="t">Class manager</span><span class="ct" id="classCount">6 classes</span></div>
+      <div id="classList"></div>
+      <div style="padding:var(--space-3) var(--space-4)">
+        <button class="btn btn-tonal btn-sm btn-block" id="addClass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>New class</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- STATUS BAR -->
+  <footer class="status">
+    <div class="grp">
+      <span class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke-linecap="round"/><circle cx="12" cy="12" r="2.5"/></svg>x <span class="mono" id="curX">412</span> · y <span class="mono" id="curY">288</span></span>
+      <span class="vsep"></span>
+      <span class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/></svg><span class="mono">1920 × 1280</span></span>
+      <span class="vsep"></span>
+      <span class="item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1.5" stroke-dasharray="3 2.5"/></svg><span class="mono" id="annStat">5</span> annotations</span>
+    </div>
+    <div class="grp">
+      <span class="item" id="toolStat">Tool: <span class="mono" style="margin-left:4px">Bounding box</span></span>
+      <span class="vsep"></span>
+      <span class="item">Press <kbd class="key" id="helpKey">?</kbd> <span style="margin-left:4px">for shortcuts</span></span>
+    </div>
+  </footer>
+</div>
+
+<!-- SHORTCUTS OVERLAY -->
+<div class="kbd-scrim" id="kbdScrim" role="dialog" aria-modal="true" aria-labelledby="kbdTitle" hidden>
+  <div class="kbd-modal">
+    <header>
+      <h2 id="kbdTitle" class="t-title" style="margin:0">Keyboard shortcuts</h2>
+      <button class="icon-btn" id="kbdClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+    </header>
+    <div class="kbd-cols" id="kbdCols"></div>
+  </div>
+</div>
+
+<!-- EXPORT DIALOG -->
+<div class="scrim" id="exportScrim" role="dialog" aria-modal="true" hidden>
+  <div class="dialog" style="max-width:540px">
+    <div style="padding:var(--space-6) var(--space-6) var(--space-4)">
+      <div class="row spread" style="margin-bottom:var(--space-3)">
+        <div class="avatar lg" style="border-radius:var(--radius-lg);background:var(--primary-container);color:var(--primary)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>
+        <button class="icon-btn" data-close-export aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+      </div>
+      <h2 class="t-title-lg" style="margin:0 0 6px">Export dataset</h2>
+      <p class="muted" style="margin:0;font-size:var(--text-body-size)">Choose a format. We'll bundle 2,030 labeled images and their annotations.</p>
+    </div>
+    <div style="padding:0 var(--space-6) var(--space-5)">
+      <div class="t-overline" style="color:var(--subtle-foreground);margin-bottom:10px">Format</div>
+      <div id="fmtGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+    </div>
+    <div class="row" style="justify-content:flex-end;gap:10px;padding:var(--space-4) var(--space-6);border-top:1px solid var(--outline);background:var(--surface-variant);border-radius:0 0 var(--radius-2xl) var(--radius-2xl)">
+      <button class="btn btn-ghost" data-close-export>Cancel</button>
+      <button class="btn btn-primary" data-close-export><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export archive</button>
+    </div>
+  </div>
+</div>
+
+<div class="ghost-cursor" id="ghostCursor">bbox</div>
+<div id="toastHost" style="position:fixed;bottom:46px;right:var(--space-4);z-index:var(--z-toast);display:flex;flex-direction:column;gap:10px;align-items:flex-end"></div>
+
+<script>
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+
+  // ---- Data ----
+  const classes = [
+    { id:"person", name:"Person", color:"#3b6af5", count:2, key:"1" },
+    { id:"car", name:"Car", color:"#10b981", count:2, key:"2" },
+    { id:"truck", name:"Truck", color:"#f59e0b", count:1, key:"3" },
+    { id:"bicycle", name:"Bicycle", color:"#8b5cf6", count:0, key:"4" },
+    { id:"traffic-light", name:"Traffic light", color:"#ec4899", count:0, key:"5" },
+    { id:"sign", name:"Sign", color:"#06b6d4", count:0, key:"6" },
+  ];
+  const cmap = Object.fromEntries(classes.map(c => [c.id, c]));
+  // boxes in photo-space (760x506)
+  const annotations = [
+    { id:"a1", cls:"car", type:"bbox", x:120, y:250, w:150, h:96, conf:0.98 },
+    { id:"a2", cls:"car", type:"bbox", x:470, y:236, w:176, h:108, conf:0.95 },
+    { id:"a3", cls:"truck", type:"bbox", x:300, y:206, w:130, h:120, conf:0.91 },
+    { id:"a4", cls:"person", type:"bbox", x:250, y:300, w:42, h:96, conf:0.88 },
+    { id:"a5", cls:"person", type:"poly", pts:"432,316 444,300 460,304 466,330 460,392 440,392 432,360", conf:0.79 },
+  ];
+  let selectedId = null;
+
+  // ---- Render boxes ----
+  const overlay = $("#overlay"), polyLayer = $("#polyLayer");
+  function renderBoxes() {
+    overlay.innerHTML = ""; polyLayer.innerHTML = "";
+    annotations.forEach(a => {
+      const c = cmap[a.cls];
+      if (a.type === "bbox") {
+        const b = document.createElement("div");
+        b.className = "box" + (a.id === selectedId ? " selected" : "");
+        b.style.cssText = `--bc:${c.color};left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px`;
+        b.innerHTML = `<span class="tag">${c.name}<span class="pc">${Math.round(a.conf*100)}%</span></span>` +
+          ["nw","ne","sw","se","n","s","w","e"].map(p => `<span class="h ${p}"></span>`).join("");
+        b.addEventListener("click", (e) => { e.stopPropagation(); select(a.id); });
+        overlay.appendChild(b);
+      } else {
+        const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+        g.style.setProperty("--bc", c.color);
+        const poly = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+        poly.setAttribute("points", a.pts);
+        if (a.id === selectedId) poly.style.strokeWidth = "3";
+        poly.addEventListener("click", (e) => { e.stopPropagation(); select(a.id); });
+        g.appendChild(poly);
+        if (a.id === selectedId) {
+          a.pts.split(" ").forEach(pt => {
+            const [x,y] = pt.split(",");
+            const cir = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            cir.setAttribute("cx",x); cir.setAttribute("cy",y); cir.setAttribute("r","4");
+            g.appendChild(cir);
+          });
+        }
+        polyLayer.appendChild(g);
+      }
+    });
+  }
+
+  // ---- Annotations list ----
+  function bboxDims(a) {
+    if (a.type === "bbox") return `${a.w}×${a.h}px · area ${(a.w*a.h/1000).toFixed(1)}k`;
+    return "polygon · 7 pts";
+  }
+  function renderList() {
+    const list = $("#annList"); list.innerHTML = "";
+    annotations.forEach((a, i) => {
+      const c = cmap[a.cls];
+      const row = document.createElement("div");
+      row.className = "ann" + (a.id === selectedId ? " selected" : "");
+      row.innerHTML = `<span class="sw" style="background:${c.color}"></span>
+        <div class="meta"><div class="nm">${c.name}<span class="type">· ${a.type === "bbox" ? "box" : "polygon"}</span></div>
+        <div class="dim">${bboxDims(a)}</div></div>
+        <div class="act"><button class="icon-btn sm" aria-label="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="icon-btn sm del" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div>`;
+      row.addEventListener("click", () => select(a.id));
+      row.querySelector(".del").addEventListener("click", (e) => { e.stopPropagation(); deleteAnn(a.id); });
+      list.appendChild(row);
+    });
+    $("#annCount").textContent = annotations.length + " objects";
+    $("#annStat").textContent = annotations.length;
+  }
+
+  // ---- Properties ----
+  function renderProps() {
+    const body = $("#propBody");
+    const a = annotations.find(x => x.id === selectedId);
+    if (!a) { body.innerHTML = `<div class="empty" style="padding:var(--space-12) var(--space-5)"><div class="art" style="width:56px;height:56px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3l7.5 18 2.3-7.2L21 11.5z"/></svg></div><h3 style="font-size:var(--text-label-size)">No selection</h3><p style="font-size:var(--text-caption-size)">Select an object on the canvas or list to edit its properties.</p></div>`; return; }
+    const c = cmap[a.cls];
+    const geom = a.type === "bbox"
+      ? `<div class="prop-row"><div class="prop"><label>X</label><div class="v">${a.x}</div></div><div class="prop"><label>Y</label><div class="v">${a.y}</div></div></div>
+         <div class="prop-row"><div class="prop"><label>Width</label><div class="v">${a.w}</div></div><div class="prop"><label>Height</label><div class="v">${a.h}</div></div></div>`
+      : `<div class="prop-row"><div class="prop"><label>Vertices</label><div class="v">7</div></div><div class="prop"><label>Perimeter</label><div class="v">312</div></div></div>`;
+    body.innerHTML = `
+      <div class="prop-group">
+        <div class="gh">Class</div>
+        <div class="row" style="gap:10px">
+          <span class="sw" style="width:18px;height:18px;border-radius:5px;background:${c.color};box-shadow:var(--elevation-1)"></span>
+          <div class="select-wrap" style="flex:1"><select class="select-native" id="propClass">${classes.map(cc => `<option ${cc.id===a.cls?"selected":""}>${cc.name}</option>`).join("")}</select></div>
+        </div>
+      </div>
+      <div class="prop-group"><div class="gh">Geometry · px</div>${geom}</div>
+      <div class="prop-group">
+        <div class="gh">Confidence</div>
+        <div class="row spread" style="margin-bottom:8px"><span class="t-caption">Model score</span><span class="t-caption mono">${Math.round(a.conf*100)}%</span></div>
+        <div class="progress"><div class="bar" style="width:${a.conf*100}%;background:${c.color}"></div></div>
+      </div>
+      <div class="prop-group" style="border:0">
+        <div class="gh">Attributes</div>
+        <label class="check" style="margin-bottom:10px"><input type="checkbox" checked><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="t-label">Occluded</span></label>
+        <label class="check"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="t-label">Truncated</span></label>
+      </div>`;
+  }
+
+  // ---- Classes ----
+  function renderClasses() {
+    const list = $("#classList"); list.innerHTML = "";
+    classes.forEach(c => {
+      const item = document.createElement("div");
+      item.className = "class-item";
+      item.innerHTML = `<span class="sw" style="background:${c.color}"></span><span class="nm">${c.name}</span>
+        <span class="ct">${c.count}</span><kbd class="key" style="height:18px;min-width:18px">${c.key}</kbd>`;
+      list.appendChild(item);
+    });
+    $("#classCount").textContent = classes.length + " classes";
+  }
+
+  // ---- Selection ----
+  function select(id) {
+    selectedId = id; renderBoxes(); renderList(); renderProps();
+    if (id) switchPanel("properties");
+  }
+  function deleteAnn(id) {
+    const i = annotations.findIndex(a => a.id === id);
+    if (i < 0) return;
+    const cls = annotations[i].cls; cmap[cls].count = Math.max(0, cmap[cls].count - 1);
+    annotations.splice(i, 1);
+    if (selectedId === id) selectedId = null;
+    renderBoxes(); renderList(); renderProps(); renderClasses();
+    toast("Annotation deleted", "Press ⌘Z to undo.");
+    flashSave();
+  }
+  $("#canvasWrap").addEventListener("click", (e) => { if (e.target.closest(".box") || e.target.closest("polygon")) return; if (e.target.closest(".overlay") || e.target.closest(".photo") || e.target.classList.contains("stage")) select(null); });
+
+  // ---- Inspector tabs ----
+  function switchPanel(name) {
+    $$(".insp-tab").forEach(t => t.setAttribute("aria-selected", t.dataset.panel === name));
+    $$(".insp-panel").forEach(p => p.hidden = p.dataset.panel !== name);
+  }
+  $$(".insp-tab").forEach(t => t.addEventListener("click", () => switchPanel(t.dataset.panel)));
+
+  // ---- Tools ----
+  let activeTool = "bbox";
+  const toolNames = { select:"Select", bbox:"Bounding box", polygon:"Polygon", point:"Keypoint", pan:"Pan", zoom:"Zoom", ai:"Auto-label" };
+  function setTool(t) {
+    activeTool = t;
+    $$(".tool").forEach(b => b.classList.toggle("active", b.dataset.tool === t));
+    $("#toolStat").innerHTML = `Tool: <span class="mono" style="margin-left:4px">${toolNames[t]}</span>`;
+    $("#ghostCursor").textContent = t;
+    const drawing = ["bbox","polygon","point"].includes(t);
+    $("#canvasWrap").style.cursor = drawing ? "crosshair" : (t === "pan" ? "grab" : "default");
+    if (t === "ai") runAI();
+  }
+  $("#toolGroup").parentElement.addEventListener("click", (e) => { const b = e.target.closest(".tool"); if (b) setTool(b.dataset.tool); });
+
+  function runAI() {
+    setTool("bbox");
+    toast("Auto-label running", "Detecting objects with the vision model…");
+    const chip = $("#saveChip"); chip.className = "savechip saving"; chip.innerHTML = `<span class="pip"></span>Analyzing`;
+    setTimeout(() => { flashSave("Saved"); toast("Auto-label complete", "Found 5 objects · 3 high-confidence."); }, 1600);
+  }
+
+  // ---- Zoom ----
+  let zoom = 100;
+  function applyZoom() { $("#photo").style.transform = `scale(${zoom/100})`; $("#zoomPct").textContent = zoom + "%"; }
+  $("#zoomIn").addEventListener("click", () => { zoom = Math.min(400, zoom + 25); applyZoom(); });
+  $("#zoomOut").addEventListener("click", () => { zoom = Math.max(25, zoom - 25); applyZoom(); });
+  $("#zoomPct").addEventListener("click", () => { zoom = 100; applyZoom(); });
+  $("#fitBtn").addEventListener("click", () => { zoom = 100; applyZoom(); toast("Fit to screen", "Zoom reset to 100%."); });
+  $("#canvasWrap").addEventListener("wheel", (e) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoom = Math.max(25, Math.min(400, zoom - Math.sign(e.deltaY)*10)); applyZoom(); }, { passive:false });
+
+  // ---- Cursor coords ----
+  const photo = $("#photo");
+  $("#canvasWrap").addEventListener("mousemove", (e) => {
+    const r = photo.getBoundingClientRect();
+    const x = Math.round((e.clientX - r.left) / (zoom/100) * (1920/760));
+    const y = Math.round((e.clientY - r.top) / (zoom/100) * (1280/506));
+    if (x >= 0 && y >= 0 && x <= 1920 && y <= 1280) { $("#curX").textContent = x; $("#curY").textContent = y; }
+    const g = $("#ghostCursor");
+    if (["bbox","polygon","point"].includes(activeTool)) { g.style.opacity = "1"; g.style.left = e.clientX + "px"; g.style.top = e.clientY + "px"; }
+    else g.style.opacity = "0";
+  });
+  $("#canvasWrap").addEventListener("mouseleave", () => $("#ghostCursor").style.opacity = "0");
+
+  // ---- Canvas toggles ----
+  $("#gridToggle").addEventListener("click", (e) => {
+    const on = e.currentTarget.classList.toggle("active");
+    $("#canvasWrap").style.background = on ? "" : "var(--surface-sunken)";
+  });
+  let annHidden = false;
+  $("#eyeToggle").addEventListener("click", (e) => {
+    annHidden = !annHidden; e.currentTarget.classList.toggle("active", !annHidden);
+    overlay.style.opacity = annHidden ? "0" : "1"; polyLayer.style.opacity = annHidden ? "0" : "1";
+  });
+
+  // ---- Image switch ----
+  let imgN = 428;
+  function setImg(n) { imgN = Math.max(1, Math.min(2480, n)); $("#imgIdx").textContent = imgN + " / 2480"; flashSave("Saved"); }
+  $("#prevImg").addEventListener("click", () => setImg(imgN - 1));
+  $("#nextImg").addEventListener("click", () => setImg(imgN + 1));
+
+  // ---- Save status ----
+  function flashSave(label="Saved") {
+    const chip = $("#saveChip"); chip.className = "savechip saving"; chip.innerHTML = `<span class="pip"></span>Saving`;
+    setTimeout(() => { chip.className = "savechip"; chip.innerHTML = `<span class="pip"></span>${label}`; }, 700);
+  }
+
+  // ---- Toast ----
+  function toast(title, msg) {
+    const t = document.createElement("div");
+    t.style.cssText = "display:flex;gap:12px;align-items:flex-start;min-width:280px;max-width:360px;background:var(--surface);border:1px solid var(--outline);border-left:3px solid var(--primary);border-radius:var(--radius-lg);box-shadow:var(--elevation-4);padding:12px 14px;transform:translateX(120%);transition:transform var(--duration-slow) var(--ease-spring)";
+    t.innerHTML = `<span style="color:var(--primary);flex:none;width:18px;height:18px;margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div style="flex:1"><div class="t-label" style="margin-bottom:2px">${title}</div><div class="t-caption">${msg}</div></div>`;
+    $("#toastHost").appendChild(t);
+    requestAnimationFrame(() => t.style.transform = "translateX(0)");
+    setTimeout(() => { t.style.transform = "translateX(120%)"; setTimeout(() => t.remove(), 400); }, 3200);
+  }
+
+  // ---- Export ----
+  const formats = [
+    { n:"COCO JSON", d:"Single .json, object detection", sel:true },
+    { n:"YOLO v8", d:"One .txt per image + data.yaml" },
+    { n:"Pascal VOC", d:"XML per image" },
+    { n:"CreateML", d:"Apple Vision format" },
+  ];
+  function renderFormats() {
+    $("#fmtGrid").innerHTML = "";
+    formats.forEach((f, i) => {
+      const card = document.createElement("button");
+      card.className = "card flat";
+      card.style.cssText = `text-align:left;padding:14px;cursor:pointer;border:1.5px solid ${f.sel?"var(--primary)":"var(--outline)"};background:${f.sel?"var(--primary-subtle)":"var(--surface)"};border-radius:var(--radius-lg);transition:all var(--duration-fast) var(--ease-standard)`;
+      card.innerHTML = `<div class="row spread" style="margin-bottom:4px"><span class="t-label">${f.n}</span>${f.sel?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5"><path d="M5 12l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</div><div class="t-caption" style="font-family:var(--font-mono);font-size:11px">${f.d}</div>`;
+      card.addEventListener("click", () => { formats.forEach(x => x.sel=false); f.sel=true; renderFormats(); });
+      $("#fmtGrid").appendChild(card);
+    });
+  }
+  function openScrim(id){ const s=$(id); s.hidden=false; requestAnimationFrame(()=>s.classList.add("open")); }
+  function closeScrim(id){ const s=$(id); s.classList.remove("open"); setTimeout(()=>s.hidden=true,240); }
+  $("#exportBtn").addEventListener("click", () => { renderFormats(); openScrim("#exportScrim"); });
+  $$("[data-close-export]").forEach(b => b.addEventListener("click", () => closeScrim("#exportScrim")));
+  $("#exportScrim").addEventListener("click", (e) => { if (e.target.id === "exportScrim") closeScrim("#exportScrim"); });
+
+  // ---- Shortcuts overlay ----
+  const shortcuts = {
+    "Tools": [["Select","V"],["Bounding box","B"],["Polygon","P"],["Keypoint","K"],["Pan","H"],["Auto-label","A"]],
+    "Canvas": [["Zoom in","+"],["Zoom out","−"],["Fit to screen","F"],["Toggle grid","G"],["Hide annotations","\\"]],
+    "Edit": [["Delete object","⌫"],["Undo","⌘Z"],["Redo","⌘⇧Z"],["Duplicate","⌘D"],["Deselect","Esc"]],
+    "Navigate": [["Next image","→"],["Previous image","←"],["Export","⌘E"],["Shortcuts","?"]],
+  };
+  function renderShortcuts() {
+    const cols = $("#kbdCols"); cols.innerHTML = "";
+    Object.entries(shortcuts).forEach(([sec, items]) => {
+      const d = document.createElement("div"); d.className = "kbd-sec";
+      d.innerHTML = `<h4>${sec}</h4>` + items.map(([n,k]) =>
+        `<div class="kbd-line"><span>${n}</span><span class="keys">${k.split("").map(ch => `<kbd class="key">${ch}</kbd>`).join("")}</span></div>`).join("");
+      cols.appendChild(d);
+    });
+  }
+  function openHelp(){ renderShortcuts(); openScrim("#kbdScrim"); }
+  $("#helpBtn").addEventListener("click", openHelp);
+  $("#kbdClose").addEventListener("click", () => closeScrim("#kbdScrim"));
+  $("#kbdScrim").addEventListener("click", (e) => { if (e.target.id === "kbdScrim") closeScrim("#kbdScrim"); });
+
+  // ---- Theme toggle ----
+  function syncThemeIcon() {
+    const dark = window.ASTheme.resolved() === "dark";
+    $("#themeIcon").innerHTML = dark
+      ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
+      : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+  }
+  $("#themeBtn").addEventListener("click", () => { window.ASTheme.set(window.ASTheme.resolved()==="dark"?"light":"dark"); });
+  window.addEventListener("themechange", () => { syncThemeIcon(); renderBoxes(); });
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", (e) => {
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === "?" || (e.shiftKey && k === "/")) { e.preventDefault(); openHelp(); return; }
+    if (e.key === "Escape") { ["#kbdScrim","#exportScrim"].forEach(id => { if(!$(id).hidden) closeScrim(id); }); select(null); return; }
+    if (e.metaKey || e.ctrlKey) {
+      if (k === "e") { e.preventDefault(); renderFormats(); openScrim("#exportScrim"); }
+      return;
+    }
+    const map = { v:"select", b:"bbox", p:"polygon", k:"point", h:"pan", z:"zoom", a:"ai" };
+    if (map[k]) { setTool(map[k]); }
+    if (e.key === "ArrowRight") setImg(imgN + 1);
+    if (e.key === "ArrowLeft") setImg(imgN - 1);
+    if (e.key === "g") $("#gridToggle").click();
+    if (e.key === "f") $("#fitBtn").click();
+    if ((e.key === "Backspace" || e.key === "Delete") && selectedId) { e.preventDefault(); deleteAnn(selectedId); }
+    // class number keys
+    const cls = classes.find(c => c.key === e.key);
+    if (cls && selectedId) { const a = annotations.find(x => x.id === selectedId); if (a) { cmap[a.cls].count--; a.cls = cls.id; cls.count++; renderBoxes(); renderList(); renderProps(); renderClasses(); flashSave(); } }
+  });
+
+  // ---- Init ----
+  renderBoxes(); renderList(); renderProps(); renderClasses(); syncThemeIcon();
+  select("a2");
+  switchPanel("annotations");
+</script>
+</body>
+</html>
