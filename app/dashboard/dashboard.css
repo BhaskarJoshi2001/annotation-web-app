@@ -63,6 +63,61 @@
 .dash .new-proj .plus { width: 48px; height: 48px; border-radius: var(--radius-full); background: var(--surface-variant); display: grid; place-items: center; transition: all var(--duration-base) var(--ease-standard); }
 .dash .new-proj:hover .plus { background: var(--primary); color: var(--on-primary); }
 
+/* ── MODALS ── */
+.dash .scrim { pointer-events: none; }
+.dash .scrim.open { pointer-events: auto; }
+
+.dash .dlg-head { display: flex; align-items: center; gap: 10px; padding: 22px 22px 0; }
+.dash .dlg-head h3 { flex: 1; font-size: var(--text-title-size); font-weight: 600; margin: 0; }
+.dash .dlg-sub { margin: 3px 0 0; font-size: var(--text-caption-size); color: var(--muted-foreground); }
+.dash .dlg-ico { width: 40px; height: 40px; border-radius: var(--radius-lg); flex: none; display: grid; place-items: center; }
+.dash .dlg-ico.del { background: color-mix(in srgb, var(--destructive) 12%, transparent); color: var(--destructive); }
+.dash .dlg-ico svg { width: 20px; height: 20px; }
+.dash .dlg-body { padding: 18px 22px; }
+.dash .dlg-body p { margin: 0; line-height: 1.65; color: var(--muted-foreground); font-size: var(--text-body-size); }
+.dash .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 0 22px 22px; }
+
+.dash .step-pill { font-size: var(--text-caption-size); font-weight: 600; padding: 3px 10px; background: var(--surface-variant); color: var(--muted-foreground); border-radius: var(--radius-full); white-space: nowrap; }
+
+/* ── CONTEXT MENU button reset ── */
+.dash .menu button.menu-item { appearance: none; border: 0; font: inherit; width: 100%; text-align: left; cursor: pointer; }
+
+/* ── NEW PROJECT DIALOG ── */
+.dash .np-dlg { max-width: 520px; }
+.dash .np-task-field { margin-top: 18px; }
+.dash .np-hint { display: block; margin-bottom: 14px; color: var(--muted-foreground); }
+
+.dash .task-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.dash .task-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 14px; border: 1.5px solid var(--outline); border-radius: var(--radius-lg); background: var(--surface-variant); cursor: pointer; text-align: left; font: inherit; transition: all var(--duration-fast) var(--ease-standard); }
+.dash .task-card:hover { border-color: var(--outline-strong); background: var(--surface); }
+.dash .task-card.sel { border-color: var(--primary); background: var(--primary-subtle); }
+.dash .task-card .tc-ico { width: 26px; height: 26px; margin-bottom: 8px; color: var(--muted-foreground); flex: none; }
+.dash .task-card.sel .tc-ico { color: var(--primary); }
+.dash .task-card .tc-ico svg { width: 100%; height: 100%; }
+.dash .task-card b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+.dash .task-card span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+/* ── CLASS CHIPS ── */
+.dash .chip-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-xl); min-height: 80px; align-content: flex-start; }
+.dash .add-chip { border-style: dashed; font: inherit; color: var(--primary); border-color: color-mix(in srgb, var(--primary) 60%, transparent); background: transparent; cursor: pointer; }
+.dash .add-chip:hover { background: var(--primary-subtle); border-style: solid; }
+.dash .chip-input { height: 30px; padding: 0 12px; border: 1.5px solid var(--primary); border-radius: var(--radius-full); background: var(--surface); font: inherit; font-size: var(--text-label-size); color: var(--foreground); outline: none; min-width: 130px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+
+/* ── CARD ANIMATIONS ── */
+@keyframes dash-card-in { from { opacity: 0; transform: scale(0.9) translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes dash-card-out { to { opacity: 0; transform: scale(0.93); } }
+.dash .proj.entering { animation: dash-card-in 0.38s cubic-bezier(0.34,1.56,0.64,1) both; }
+.dash .proj.removing { animation: dash-card-out 0.3s ease forwards; pointer-events: none; }
+.dash .new-badge { position: absolute; top: 10px; right: 46px; z-index: 2; }
+
+/* ── TOASTS ── */
+.dash .toast-host { position: fixed; bottom: 24px; right: 24px; z-index: 1100; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }
+.dash .toast-item { display: flex; gap: 12px; align-items: flex-start; min-width: 280px; max-width: 380px; background: var(--surface); border: 1px solid var(--outline); border-left: 3px solid var(--primary); border-radius: var(--radius-lg); box-shadow: var(--elevation-4); padding: 12px 14px; transform: translateX(120%); transition: transform var(--duration-slow) var(--ease-standard); pointer-events: auto; }
+.dash .toast-item.show { transform: translateX(0); }
+.dash .t-label { font-size: var(--text-label-size); font-weight: 600; margin-bottom: 2px; }
+.dash .t-action { display: inline-block; margin-top: 4px; font-size: var(--text-caption-size); font-weight: 600; color: var(--primary); text-decoration: none; }
+.dash .t-action:hover { text-decoration: underline; }
+
 @media (max-width: 880px) {
   .dash { grid-template-columns: 1fr; }
   .dash .stats { grid-template-columns: repeat(2, 1fr); }

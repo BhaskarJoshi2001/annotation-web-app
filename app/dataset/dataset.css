@@ -72,6 +72,49 @@
 .dataset-bulkbar .prim:hover { background: var(--primary-hover); }
 .dataset-bulkbar .closebtn { width: 32px; height: 32px; padding: 0; justify-content: center; }
 
+/* ── EXPORT MODAL ── */
+.dataset .scrim { pointer-events: none; }
+.dataset .scrim.open { pointer-events: auto; }
+
+.dataset .dlg-head { display: flex; align-items: center; gap: 10px; padding: 22px 22px 0; }
+.dataset .dlg-head h3 { flex: 1; font-size: var(--text-title-size); font-weight: 600; margin: 0; }
+.dataset .dlg-sub { margin: 3px 0 0; font-size: var(--text-caption-size); color: var(--muted-foreground); }
+.dataset .dlg-ico { width: 40px; height: 40px; border-radius: var(--radius-lg); flex: none; display: grid; place-items: center; }
+.dataset .dlg-ico.exp-ico { background: var(--primary-container); color: var(--primary); }
+.dataset .dlg-ico svg { width: 20px; height: 20px; }
+.dataset .dlg-body { padding: 18px 22px; }
+.dataset .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 0 22px 22px; }
+.dataset .exp-dlg { max-width: 480px; }
+.dataset .exp-section-lbl { font-size: var(--text-caption-size); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted-foreground); margin: 0 0 10px; }
+
+/* Format cards grid */
+.dataset .fmt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.dataset .fmt-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px solid var(--outline); border-radius: var(--radius-lg); background: var(--surface-variant); cursor: pointer; text-align: left; font: inherit; transition: all var(--duration-fast) var(--ease-standard); }
+.dataset .fmt-card:hover { border-color: var(--outline-strong); background: var(--surface); }
+.dataset .fmt-card.sel { border-color: var(--primary); background: var(--primary-subtle); }
+.dataset .fmt-radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--outline-strong); display: grid; place-items: center; flex: none; transition: all var(--duration-fast) var(--ease-standard); }
+.dataset .fmt-card.sel .fmt-radio { border-color: var(--primary); background: var(--primary); }
+.dataset .fmt-pip { width: 8px; height: 8px; border-radius: 50%; background: #fff; opacity: 0; transform: scale(0.4); transition: all var(--duration-fast) var(--ease-spring); }
+.dataset .fmt-card.sel .fmt-pip { opacity: 1; transform: scale(1); }
+.dataset .fmt-info b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+.dataset .fmt-info span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+/* Summary row */
+.dataset .exp-summary { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-lg); margin-bottom: 14px; font-size: var(--text-label-size); color: var(--muted-foreground); }
+.dataset .exp-summary svg { width: 16px; height: 16px; flex: none; color: var(--primary); }
+
+/* Option toggles */
+.dataset .exp-opts { border: 1px solid var(--outline); border-radius: var(--radius-lg); overflow: hidden; }
+.dataset .exp-opt { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--outline-subtle); cursor: default; gap: 16px; }
+.dataset .exp-opt > span { flex: 1; }
+.dataset .exp-opt b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+.dataset .exp-opt > span > span { font-size: var(--text-caption-size); color: var(--muted-foreground); }
+
+/* Toasts */
+.dataset .ds-toast-host { position: fixed; bottom: 24px; right: 24px; z-index: 1100; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }
+.dataset .ds-toast { display: flex; gap: 12px; align-items: flex-start; min-width: 280px; max-width: 380px; background: var(--surface); border: 1px solid var(--outline); border-left: 3px solid var(--primary); border-radius: var(--radius-lg); box-shadow: var(--elevation-4); padding: 12px 14px; transform: translateX(120%); transition: transform var(--duration-slow) var(--ease-standard); pointer-events: auto; }
+.dataset .ds-toast.show { transform: translateX(0); }
+
 @media (max-width: 880px) {
   .dataset { grid-template-columns: 1fr; }
   .dataset .topbar h1, .dataset .row1, .dataset .meta-row, .dataset .tabsrow { padding-left: var(--space-5); padding-right: var(--space-5); }
