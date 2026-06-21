@@ -1,26 +1,30 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { Annotation, ToolType, ZoomState, ImageData, PolygonDrawingState, Point, Polygon } from '../types';
+import type { Annotation, LabelClass, ToolType, ZoomState, ImageData, PolygonDrawingState, Point, Polygon } from '../types';
+
+const CLASS_COLORS = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
+  '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
+  '#84cc16', '#14b8a6',
+];
 
 interface HistoryState {
   annotations: Annotation[];
 }
 
 interface AnnotationStore {
-  // State
   image: ImageData | null;
   annotations: Annotation[];
+  labelClasses: LabelClass[];
+  activeClassId: string | null;
   selectedTool: ToolType;
   selectedAnnotationId: string | null;
   zoomState: ZoomState;
   polygonDrawing: PolygonDrawingState;
-
-  // History for undo/redo
   history: HistoryState[];
   historyStep: number;
 
-  // Actions with strong typing
   setImage: (image: ImageData) => void;
   clearImage: () => void;
   addAnnotation: (annotation: Annotation) => void;
@@ -35,11 +39,16 @@ interface AnnotationStore {
   redo: () => void;
   _addToHistory: (annotations: Annotation[]) => void;
 
-  // Polygon actions
+  addLabelClass: (name: string, color?: string) => LabelClass;
+  updateLabelClass: (id: string, updates: Partial<Pick<LabelClass, 'name' | 'color'>>) => void;
+  deleteLabelClass: (id: string) => void;
+  setActiveClass: (id: string | null) => void;
+  getEffectiveClassId: () => string;
+
   startPolygon: (point: Point) => void;
   addPolygonPoint: (point: Point) => void;
   updatePolygonPreview: (point: Point | null) => void;
-  completePolygon: (label?: string) => void;
+  completePolygon: () => void;
   cancelPolygon: () => void;
 }
 
@@ -49,9 +58,10 @@ export const useAnnotationStore = create<AnnotationStore>()(
   devtools(
     persist(
       (set, get) => ({
-        // Initial state
         image: null,
         annotations: [],
+        labelClasses: [],
+        activeClassId: null,
         selectedTool: 'select',
         selectedAnnotationId: null,
         zoomState: { scale: 1, position: { x: 0, y: 0 } },
@@ -59,28 +69,18 @@ export const useAnnotationStore = create<AnnotationStore>()(
         history: [{ annotations: [] }],
         historyStep: 0,
 
-        // Helper to add to history
-        _addToHistory: (annotations: Annotation[]) => {
+        _addToHistory: (annotations) => {
           const { history, historyStep } = get();
           const newHistory = history.slice(0, historyStep + 1);
           newHistory.push({ annotations: [...annotations] });
-
-          // Limit history size
           if (newHistory.length > MAX_HISTORY) {
             newHistory.shift();
-            set({
-              history: newHistory,
-              historyStep: newHistory.length - 1,
-            });
+            set({ history: newHistory, historyStep: newHistory.length - 1 });
           } else {
-            set({
-              history: newHistory,
-              historyStep: newHistory.length - 1,
-            });
+            set({ history: newHistory, historyStep: newHistory.length - 1 });
           }
         },
 
-        // Actions implementation
         setImage: (image) => set({
           image,
           annotations: [],
@@ -121,23 +121,12 @@ export const useAnnotationStore = create<AnnotationStore>()(
         },
 
         setSelectedTool: (tool) => set({ selectedTool: tool }),
-
         setSelectedAnnotation: (id) => set({ selectedAnnotationId: id }),
-
-        setZoomState: (zoom) =>
-          set((state) => ({
-            zoomState: { ...state.zoomState, ...zoom },
-          })),
-
-        resetZoom: () =>
-          set({ zoomState: { scale: 1, position: { x: 0, y: 0 } } }),
+        setZoomState: (zoom) => set((state) => ({ zoomState: { ...state.zoomState, ...zoom } })),
+        resetZoom: () => set({ zoomState: { scale: 1, position: { x: 0, y: 0 } } }),
 
         clearAll: () => {
-          set({
-            annotations: [],
-            selectedAnnotationId: null,
-            selectedTool: 'select',
-          });
+          set({ annotations: [], selectedAnnotationId: null, selectedTool: 'select' });
           get()._addToHistory([]);
         },
 
@@ -145,11 +134,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const { history, historyStep } = get();
           if (historyStep > 0) {
             const newStep = historyStep - 1;
-            set({
-              annotations: [...history[newStep].annotations],
-              historyStep: newStep,
-              selectedAnnotationId: null,
-            });
+            set({ annotations: [...history[newStep].annotations], historyStep: newStep, selectedAnnotationId: null });
           }
         },
 
@@ -157,74 +142,95 @@ export const useAnnotationStore = create<AnnotationStore>()(
           const { history, historyStep } = get();
           if (historyStep < history.length - 1) {
             const newStep = historyStep + 1;
-            set({
-              annotations: [...history[newStep].annotations],
-              historyStep: newStep,
-              selectedAnnotationId: null,
-            });
+            set({ annotations: [...history[newStep].annotations], historyStep: newStep, selectedAnnotationId: null });
           }
         },
 
-        // Polygon actions
-        startPolygon: (point) =>
+        addLabelClass: (name, color) => {
+          const { labelClasses, activeClassId } = get();
+          const nextColor = color ?? CLASS_COLORS[labelClasses.length % CLASS_COLORS.length];
+          const newClass: LabelClass = { id: uuidv4(), name: name.trim(), color: nextColor };
+          const newClasses = [...labelClasses, newClass];
           set({
-            polygonDrawing: { isDrawing: true, points: [point], previewPoint: null },
-          }),
+            labelClasses: newClasses,
+            activeClassId: activeClassId ?? newClass.id,
+          });
+          return newClass;
+        },
 
-        addPolygonPoint: (point) =>
+        updateLabelClass: (id, updates) => {
           set((state) => ({
-            polygonDrawing: {
-              ...state.polygonDrawing,
-              points: [...state.polygonDrawing.points, point],
-            },
-          })),
+            labelClasses: state.labelClasses.map((c) => c.id === id ? { ...c, ...updates } : c),
+          }));
+        },
 
-        updatePolygonPreview: (point) =>
-          set((state) => ({
-            polygonDrawing: { ...state.polygonDrawing, previewPoint: point },
-          })),
+        deleteLabelClass: (id) => {
+          const { labelClasses, activeClassId } = get();
+          const remaining = labelClasses.filter((c) => c.id !== id);
+          set({
+            labelClasses: remaining,
+            activeClassId: activeClassId === id ? (remaining[0]?.id ?? null) : activeClassId,
+          });
+        },
 
-        completePolygon: (label) => {
+        setActiveClass: (id) => set({ activeClassId: id }),
+
+        // Returns a valid classId to use when drawing. Creates a default class if none exist.
+        getEffectiveClassId: () => {
+          const { activeClassId, labelClasses, addLabelClass } = get();
+          if (activeClassId && labelClasses.find((c) => c.id === activeClassId)) return activeClassId;
+          if (labelClasses.length > 0) {
+            set({ activeClassId: labelClasses[0].id });
+            return labelClasses[0].id;
+          }
+          const defaultClass = addLabelClass('Object');
+          return defaultClass.id;
+        },
+
+        startPolygon: (point) => set({ polygonDrawing: { isDrawing: true, points: [point], previewPoint: null } }),
+
+        addPolygonPoint: (point) => set((state) => ({
+          polygonDrawing: { ...state.polygonDrawing, points: [...state.polygonDrawing.points, point] },
+        })),
+
+        updatePolygonPreview: (point) => set((state) => ({
+          polygonDrawing: { ...state.polygonDrawing, previewPoint: point },
+        })),
+
+        completePolygon: () => {
           const state = get();
           if (state.polygonDrawing.points.length < 3) {
             set({ polygonDrawing: { isDrawing: false, points: [], previewPoint: null } });
             return;
           }
-
+          const classId = state.getEffectiveClassId();
           const newAnnotation: Polygon = {
             id: uuidv4(),
             type: 'polygon',
-            label: label || `Polygon ${state.annotations.length + 1}`,
+            classId,
             points: state.polygonDrawing.points,
-            color: '#10b981',
             createdAt: new Date(),
             updatedAt: new Date(),
           };
-
           const newAnnotations = [...state.annotations, newAnnotation];
-          set({
-            annotations: newAnnotations,
-            polygonDrawing: { isDrawing: false, points: [], previewPoint: null },
-          });
+          set({ annotations: newAnnotations, polygonDrawing: { isDrawing: false, points: [], previewPoint: null } });
           get()._addToHistory(newAnnotations);
         },
 
-        cancelPolygon: () =>
-          set({
-            polygonDrawing: { isDrawing: false, points: [], previewPoint: null },
-          }),
+        cancelPolygon: () => set({ polygonDrawing: { isDrawing: false, points: [], previewPoint: null } }),
       }),
       {
         name: 'annotation-storage',
-        version: 1,
-        // v0 persisted annotations in canvas-display coordinates. They are
-        // incompatible with the current image-space storage, so drop them.
+        version: 2,
         migrate: (persistedState, version) => {
-          if (version < 1) {
+          if (version < 2) {
+            // Schema changed: annotations now use classId instead of label/color
             const prev = persistedState as { image?: ImageData | null } | null;
             return {
               image: prev?.image ?? null,
               annotations: [],
+              labelClasses: [],
+              activeClassId: null,
               history: [{ annotations: [] }],
               historyStep: 0,
             };
@@ -234,13 +240,14 @@ export const useAnnotationStore = create<AnnotationStore>()(
         partialize: (state) => ({
           annotations: state.annotations,
           image: state.image,
+          labelClasses: state.labelClasses,
+          activeClassId: state.activeClassId,
           history: state.history,
           historyStep: state.historyStep,
         }),
         merge: (persistedState, currentState) => ({
           ...currentState,
           ...(persistedState as object),
-          // Ensure polygonDrawing always exists with correct shape
           polygonDrawing: { isDrawing: false, points: [], previewPoint: null },
         }),
       }

@@ -4,7 +4,11 @@ import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHand
 import { Canvas, Rect, Polygon as FabricPolygon, Circle, FabricImage, Point } from 'fabric';
 import type { TPointerEventInfo, TPointerEvent } from 'fabric';
 import { useAnnotationStore } from '@/lib/store/annotation-store';
-import type { BoundingBox as BoundingBoxType, Polygon as PolygonType, Point as PointType } from '@/lib/types';
+import type { BoundingBox as BoundingBoxType, LabelClass, Polygon as PolygonType, Point as PointType } from '@/lib/types';
+
+function classColor(classId: string, labelClasses: LabelClass[]): string {
+  return labelClasses.find((c) => c.id === classId)?.color ?? '#3b82f6';
+}
 import { v4 as uuidv4 } from 'uuid';
 
 export interface AnnotationCanvasHandle {
@@ -38,6 +42,7 @@ function imageToScene(p: PointType, pl: ImagePlacement): PointType {
 export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref) => {
   const image = useAnnotationStore((state) => state.image);
   const annotations = useAnnotationStore((state) => state.annotations);
+  const labelClasses = useAnnotationStore((state) => state.labelClasses);
   const selectedTool = useAnnotationStore((state) => state.selectedTool);
   const selectedAnnotationId = useAnnotationStore((state) => state.selectedAnnotationId);
   const zoomState = useAnnotationStore((state) => state.zoomState);
@@ -52,6 +57,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     addPolygonPoint,
     updatePolygonPreview,
     cancelPolygon,
+    getEffectiveClassId,
   } = useAnnotationStore();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -191,6 +197,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     }
 
     annotations.forEach((annotation) => {
+      const color = classColor(annotation.classId, labelClasses);
       if (annotation.type === 'bbox') {
         const topLeft = imageToScene({ x: annotation.x, y: annotation.y }, placement);
         const rect = new Rect({
@@ -199,7 +206,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
           width: annotation.width * placement.scale,
           height: annotation.height * placement.scale,
           fill: 'transparent',
-          stroke: annotation.color,
+          stroke: color,
           strokeWidth: 2,
           strokeUniform: true,
           selectable: selectedTool === 'select',
@@ -228,8 +235,8 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
       } else if (annotation.type === 'polygon') {
         const scenePoints = annotation.points.map((p) => imageToScene(p, placement));
         const polygon = new FabricPolygon(scenePoints, {
-          fill: `${annotation.color}33`,
-          stroke: annotation.color,
+          fill: `${color}33`,
+          stroke: color,
           strokeWidth: 2,
           strokeUniform: true,
           selectable: selectedTool === 'select',
@@ -260,7 +267,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     });
 
     canvas.requestRenderAll();
-  }, [annotations, selectedTool, selectedAnnotationId, imagePlacement, updateAnnotation, setSelectedAnnotation]);
+  }, [annotations, labelClasses, selectedTool, selectedAnnotationId, imagePlacement, updateAnnotation, setSelectedAnnotation]);
 
   // Render in-progress polygon preview (points are kept in scene space)
   useEffect(() => {
@@ -342,7 +349,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     const placement = imagePlacementRef.current;
     if (!placement) return;
 
-    const { annotations: currentAnnotations, polygonDrawing: drawing } = useAnnotationStore.getState();
+    const { polygonDrawing: drawing, getEffectiveClassId: getClassId } = useAnnotationStore.getState();
     if (drawing.points.length < 3) {
       cancelPolygon();
       return;
@@ -351,9 +358,8 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     const newPolygon: PolygonType = {
       id: uuidv4(),
       type: 'polygon',
-      label: `Polygon ${currentAnnotations.length + 1}`,
+      classId: getClassId(),
       points: drawing.points.map((p) => sceneToImage(p, placement)),
-      color: '#10b981',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -468,12 +474,11 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
       const newAnnotation: BoundingBoxType = {
         id: uuidv4(),
         type: 'bbox',
-        label: `Object ${annotations.length + 1}`,
+        classId: getEffectiveClassId(),
         x: topLeft.x,
         y: topLeft.y,
         width: sceneWidth / placement.scale,
         height: sceneHeight / placement.scale,
-        color: '#3b82f6',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -483,7 +488,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     setIsDrawing(false);
     setDrawingRect(null);
     startPointRef.current = null;
-  }, [isDrawing, drawingRect, annotations.length, addAnnotation, isPanning]);
+  }, [isDrawing, drawingRect, addAnnotation, getEffectiveClassId, isPanning]);
 
   // Double click - complete polygon
   const handleDoubleClick = useCallback(() => {

@@ -1,48 +1,38 @@
-/**
- * Represents a 2D point coordinate
- */
 export interface Point {
   x: number;
   y: number;
 }
 
-/**
- * Bounding box annotation
- */
+export interface LabelClass {
+  id: string;
+  name: string;
+  color: string;
+  hotkey?: string;
+}
+
 export interface BoundingBox {
   id: string;
   type: 'bbox';
-  label: string;
+  classId: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  color: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-/**
- * Polygon annotation
- */
 export interface Polygon {
   id: string;
   type: 'polygon';
-  label: string;
+  classId: string;
   points: Point[];
-  color: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-/**
- * Union type for all annotation types
- */
 export type Annotation = BoundingBox | Polygon;
 
-/**
- * Image metadata
- */
 export interface ImageData {
   id: string;
   name: string;
@@ -54,57 +44,37 @@ export interface ImageData {
   uploadedAt: Date;
 }
 
-/**
- * Project state
- */
 export interface ProjectState {
   image: ImageData | null;
   annotations: Annotation[];
 }
 
-/**
- * Tool types
- */
 export type ToolType = 'select' | 'bbox' | 'polygon';
 
-/**
- * Zoom state
- */
 export interface ZoomState {
   scale: number;
   position: Point;
 }
 
-/**
- * Polygon drawing state
- */
 export interface PolygonDrawingState {
   isDrawing: boolean;
   points: Point[];
   previewPoint: Point | null;
 }
 
-/**
- * Export format options
- */
 export type ExportFormat = 'json' | 'coco' | 'yolo' | 'image';
 
-/**
- * Custom JSON export format
- */
 export interface CustomJSONExport {
   image: {
     filename: string;
     width: number;
     height: number;
   };
+  labelClasses: LabelClass[];
   annotations: Annotation[];
   exportedAt: Date;
 }
 
-/**
- * COCO format types
- */
 export interface COCOImage {
   id: number;
   file_name: string;
@@ -134,17 +104,11 @@ export interface COCOExport {
   categories: COCOCategory[];
 }
 
-/**
- * YOLO format export
- */
 export interface YOLOExport {
   annotations: string; // .txt content
   classes: string; // classes.txt content
 }
 
-/**
- * Export result
- */
 export interface ExportResult {
   success: boolean;
   filename?: string;

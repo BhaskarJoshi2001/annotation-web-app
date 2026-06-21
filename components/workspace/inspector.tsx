@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAnnotationStore } from '@/lib/store/annotation-store';
-import type { Annotation, BoundingBox, Polygon } from '@/lib/types';
+import type { Annotation, BoundingBox, LabelClass, Polygon } from '@/lib/types';
 
 type Tab = 'annotations' | 'properties' | 'classes';
 
@@ -14,25 +14,153 @@ function dims(a: Annotation): string {
   return `polygon · ${(a as Polygon).points.length} pts`;
 }
 
+function ClassRow({
+  cls,
+  isActive,
+  count,
+  onActivate,
+  onDelete,
+  onUpdate,
+}: {
+  cls: LabelClass;
+  isActive: boolean;
+  count: number;
+  onActivate: () => void;
+  onDelete: () => void;
+  onUpdate: (updates: Partial<Pick<LabelClass, 'name' | 'color'>>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(cls.name);
+
+  const commitEdit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== cls.name) onUpdate({ name: trimmed });
+    setEditing(false);
+  };
+
+  return (
+    <div
+      className={`class-item${isActive ? ' active' : ''}`}
+      onClick={onActivate}
+      style={{ cursor: 'pointer' }}
+    >
+      <input
+        type="color"
+        value={cls.color}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onUpdate({ color: e.target.value })}
+        aria-label="Class color"
+        style={{ width: 18, height: 18, padding: 0, border: 'none', borderRadius: 4, cursor: 'pointer', flex: 'none', background: 'transparent' }}
+      />
+      {editing ? (
+        <input
+          className="input"
+          value={draft}
+          autoFocus
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(false); }}
+          style={{ flex: 1, fontSize: 'var(--text-label-size)', height: 26 }}
+        />
+      ) : (
+        <span
+          className="nm"
+          onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); setDraft(cls.name); }}
+          title="Double-click to rename"
+          style={{ flex: 1 }}
+        >
+          {cls.name}
+        </span>
+      )}
+      {isActive && (
+        <span style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 600, letterSpacing: '0.03em' }}>ACTIVE</span>
+      )}
+      <span className="ct">{count}</span>
+      <span
+        className="icon-btn sm"
+        role="button"
+        tabIndex={-1}
+        aria-label="Delete class"
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+        </svg>
+      </span>
+    </div>
+  );
+}
+
+function AddClassForm({ onAdd }: { onAdd: (name: string, color: string) => void }) {
+  const labelClasses = useAnnotationStore((s) => s.labelClasses);
+  const DEFAULT_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+  const [name, setName] = useState('');
+  const [color, setColor] = useState(DEFAULT_COLORS[labelClasses.length % DEFAULT_COLORS.length]);
+
+  const submit = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onAdd(trimmed, color);
+    setName('');
+    setColor(DEFAULT_COLORS[(labelClasses.length + 1) % DEFAULT_COLORS.length]);
+  };
+
+  return (
+    <div style={{ padding: 'var(--space-3) var(--space-4)', borderTop: '1px solid var(--outline)' }}>
+      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+        <input
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          aria-label="New class color"
+          style={{ width: 32, height: 32, padding: 0, border: '1px solid var(--outline)', borderRadius: 'var(--radius-sm)', background: 'transparent', cursor: 'pointer', flex: 'none' }}
+        />
+        <input
+          className="input"
+          placeholder="Class name…"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+          style={{ flex: 1 }}
+        />
+      </div>
+      <button
+        className="btn btn-tonal btn-sm btn-block"
+        onClick={submit}
+        disabled={!name.trim()}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+        </svg>
+        Add class
+      </button>
+    </div>
+  );
+}
+
 export function Inspector() {
   const annotations = useAnnotationStore((s) => s.annotations);
+  const labelClasses = useAnnotationStore((s) => s.labelClasses);
+  const activeClassId = useAnnotationStore((s) => s.activeClassId);
   const selectedId = useAnnotationStore((s) => s.selectedAnnotationId);
   const setSelected = useAnnotationStore((s) => s.setSelectedAnnotation);
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
   const deleteAnnotation = useAnnotationStore((s) => s.deleteAnnotation);
+  const addLabelClass = useAnnotationStore((s) => s.addLabelClass);
+  const updateLabelClass = useAnnotationStore((s) => s.updateLabelClass);
+  const deleteLabelClass = useAnnotationStore((s) => s.deleteLabelClass);
+  const setActiveClass = useAnnotationStore((s) => s.setActiveClass);
 
   const [tab, setTab] = useState<Tab>('annotations');
 
   const selected = annotations.find((a) => a.id === selectedId) ?? null;
 
-  // Derive a class manager view from the labels in use.
-  const classMap = new Map<string, { label: string; color: string; count: number }>();
-  annotations.forEach((a) => {
-    const ex = classMap.get(a.label);
-    if (ex) ex.count += 1;
-    else classMap.set(a.label, { label: a.label, color: a.color, count: 1 });
-  });
-  const classes = [...classMap.values()];
+  const classCountMap = new Map<string, number>();
+  annotations.forEach((a) => classCountMap.set(a.classId, (classCountMap.get(a.classId) ?? 0) + 1));
+
+  const getClassName = (classId: string) => labelClasses.find((c) => c.id === classId)?.name ?? '(unknown)';
+  const getClassColor = (classId: string) => labelClasses.find((c) => c.id === classId)?.color ?? '#3b82f6';
 
   const selectRow = (id: string) => { setSelected(id); setTab('properties'); };
 
@@ -74,9 +202,9 @@ export function Inspector() {
                 className={`ann${a.id === selectedId ? ' selected' : ''}`}
                 onClick={() => selectRow(a.id)}
               >
-                <span className="sw" style={{ background: a.color }} />
+                <span className="sw" style={{ background: getClassColor(a.classId) }} />
                 <div className="meta">
-                  <div className="nm">{a.label}<span className="type">· {a.type === 'bbox' ? 'box' : 'polygon'}</span></div>
+                  <div className="nm">{getClassName(a.classId)}<span className="type">· {a.type === 'bbox' ? 'box' : 'polygon'}</span></div>
                   <div className="dim">{dims(a)}</div>
                 </div>
                 <div className="act">
@@ -111,22 +239,25 @@ export function Inspector() {
           ) : (
             <>
               <div className="prop-group">
-                <div className="gh">Label</div>
+                <div className="gh">Class</div>
                 <div className="row" style={{ gap: 10 }}>
-                  <input
-                    type="color"
-                    value={selected.color}
-                    onChange={(e) => updateAnnotation(selected.id, { color: e.target.value })}
-                    aria-label="Color"
-                    style={{ width: 34, height: 34, padding: 0, border: '1px solid var(--outline)', borderRadius: 'var(--radius-sm)', background: 'transparent', cursor: 'pointer', flex: 'none' }}
-                  />
-                  <input
-                    className="input"
-                    value={selected.label}
-                    onChange={(e) => updateAnnotation(selected.id, { label: e.target.value })}
-                    aria-label="Label"
-                    style={{ flex: 1 }}
-                  />
+                  <span style={{ width: 16, height: 16, borderRadius: 3, background: getClassColor(selected.classId), flex: 'none', display: 'inline-block' }} />
+                  {labelClasses.length > 0 ? (
+                    <select
+                      className="input"
+                      value={selected.classId}
+                      onChange={(e) => updateAnnotation(selected.id, { classId: e.target.value })}
+                      style={{ flex: 1 }}
+                    >
+                      {labelClasses.map((cls) => (
+                        <option key={cls.id} value={cls.id}>{cls.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span style={{ flex: 1, fontSize: 'var(--text-caption-size)', color: 'var(--subtle-foreground)' }}>
+                      No classes defined — add one in the Classes tab.
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -168,34 +299,35 @@ export function Inspector() {
 
       {/* CLASSES */}
       {tab === 'classes' && (
-        <div className="insp-panel">
+        <div className="insp-panel" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="panel-head">
-            <span className="t">Class manager</span>
-            <span className="ct">{classes.length} class{classes.length === 1 ? '' : 'es'}</span>
+            <span className="t">Label classes</span>
+            <span className="ct">{labelClasses.length} class{labelClasses.length === 1 ? '' : 'es'}</span>
           </div>
-          {classes.length === 0 ? (
-            <div className="empty" style={{ padding: 'var(--space-12) var(--space-5)' }}>
-              <div className="art" style={{ width: 56, height: 56 }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9" /></svg>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {labelClasses.length === 0 ? (
+              <div className="empty" style={{ padding: 'var(--space-10) var(--space-5)' }}>
+                <div className="art" style={{ width: 56, height: 56 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" /></svg>
+                </div>
+                <h3 style={{ fontSize: 'var(--text-label-size)' }}>No classes yet</h3>
+                <p style={{ fontSize: 'var(--text-caption-size)' }}>Define classes first, then draw annotations. Each annotation belongs to a class.</p>
               </div>
-              <h3 style={{ fontSize: 'var(--text-label-size)' }}>No classes yet</h3>
-              <p style={{ fontSize: 'var(--text-caption-size)' }}>Classes appear here as you label objects.</p>
-            </div>
-          ) : (
-            classes.map((c) => (
-              <div className="class-item" key={c.label}>
-                <span className="sw" style={{ background: c.color }} />
-                <span className="nm">{c.label}</span>
-                <span className="ct">{c.count}</span>
-              </div>
-            ))
-          )}
-          <div style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <button className="btn btn-tonal btn-sm btn-block" disabled title="Custom classes — coming soon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
-              New class
-            </button>
+            ) : (
+              labelClasses.map((cls) => (
+                <ClassRow
+                  key={cls.id}
+                  cls={cls}
+                  isActive={cls.id === activeClassId}
+                  count={classCountMap.get(cls.id) ?? 0}
+                  onActivate={() => setActiveClass(cls.id)}
+                  onDelete={() => deleteLabelClass(cls.id)}
+                  onUpdate={(updates) => updateLabelClass(cls.id, updates)}
+                />
+              ))
+            )}
           </div>
+          <AddClassForm onAdd={(name, color) => addLabelClass(name, color)} />
         </div>
       )}
     </aside>

@@ -2,6 +2,7 @@
 
 import type {
   Annotation,
+  LabelClass,
   BoundingBox,
   Polygon,
   CustomJSONExport,
@@ -13,19 +14,21 @@ import type {
   ImageData,
 } from '../types';
 
+function className(classId: string, labelClasses: LabelClass[]): string {
+  return labelClasses.find((c) => c.id === classId)?.name ?? 'unknown';
+}
+
 /**
  * Export annotations as custom JSON format
  */
 export function exportAsJSON(
   image: ImageData,
-  annotations: Annotation[]
+  annotations: Annotation[],
+  labelClasses: LabelClass[]
 ): CustomJSONExport {
   return {
-    image: {
-      filename: image.filename,
-      width: image.width,
-      height: image.height,
-    },
+    image: { filename: image.filename, width: image.width, height: image.height },
+    labelClasses,
     annotations,
     exportedAt: new Date(),
   };
@@ -36,76 +39,47 @@ export function exportAsJSON(
  */
 export function exportAsCOCO(
   image: ImageData,
-  annotations: Annotation[]
+  annotations: Annotation[],
+  labelClasses: LabelClass[]
 ): COCOExport {
-  // Extract unique labels
-  const uniqueLabels = Array.from(new Set(annotations.map((a) => a.label)));
-
-  // Create categories
-  const categories: COCOCategory[] = uniqueLabels.map((label, index) => ({
+  const uniqueClassIds = Array.from(new Set(annotations.map((a) => a.classId)));
+  const categories: COCOCategory[] = uniqueClassIds.map((classId, index) => ({
     id: index + 1,
-    name: label,
+    name: className(classId, labelClasses),
     supercategory: 'object',
   }));
+  const classIdToCategoryId = new Map<string, number>();
+  uniqueClassIds.forEach((id, index) => classIdToCategoryId.set(id, index + 1));
 
-  // Create category map
-  const labelToCategoryId = new Map<string, number>();
-  categories.forEach((cat) => labelToCategoryId.set(cat.name, cat.id));
+  const cocoImage: COCOImage = { id: 1, file_name: image.filename, width: image.width, height: image.height };
 
-  // Create COCO image
-  const cocoImage: COCOImage = {
-    id: 1,
-    file_name: image.filename,
-    width: image.width,
-    height: image.height,
-  };
-
-  // Create COCO annotations
   const cocoAnnotations: COCOAnnotation[] = annotations.map((ann, index) => {
-    const categoryId = labelToCategoryId.get(ann.label) || 1;
+    const categoryId = classIdToCategoryId.get(ann.classId) ?? 1;
 
     if (ann.type === 'bbox') {
       const bbox = ann as BoundingBox;
       return {
-        id: index + 1,
-        image_id: 1,
-        category_id: categoryId,
+        id: index + 1, image_id: 1, category_id: categoryId,
         bbox: [bbox.x, bbox.y, bbox.width, bbox.height],
-        area: bbox.width * bbox.height,
-        iscrowd: 0,
+        area: bbox.width * bbox.height, iscrowd: 0,
       };
     } else {
-      // Polygon
       const polygon = ann as Polygon;
       const flatPoints = polygon.points.flatMap((p) => [p.x, p.y]);
-
-      // Calculate bounding box from polygon
       const xs = polygon.points.map((p) => p.x);
       const ys = polygon.points.map((p) => p.y);
-      const minX = Math.min(...xs);
-      const minY = Math.min(...ys);
-      const maxX = Math.max(...xs);
-      const maxY = Math.max(...ys);
-      const width = maxX - minX;
-      const height = maxY - minY;
-
+      const minX = Math.min(...xs); const minY = Math.min(...ys);
+      const maxX = Math.max(...xs); const maxY = Math.max(...ys);
+      const w = maxX - minX; const h = maxY - minY;
       return {
-        id: index + 1,
-        image_id: 1,
-        category_id: categoryId,
-        bbox: [minX, minY, width, height],
-        segmentation: [flatPoints],
-        area: width * height,
-        iscrowd: 0,
+        id: index + 1, image_id: 1, category_id: categoryId,
+        bbox: [minX, minY, w, h], segmentation: [flatPoints],
+        area: w * h, iscrowd: 0,
       };
     }
   });
 
-  return {
-    images: [cocoImage],
-    annotations: cocoAnnotations,
-    categories,
-  };
+  return { images: [cocoImage], annotations: cocoAnnotations, categories };
 }
 
 /**
@@ -113,38 +87,27 @@ export function exportAsCOCO(
  */
 export function exportAsYOLO(
   image: ImageData,
-  annotations: Annotation[]
+  annotations: Annotation[],
+  labelClasses: LabelClass[]
 ): YOLOExport {
-  // Extract unique labels
-  const uniqueLabels = Array.from(new Set(annotations.map((a) => a.label)));
-  const classes = uniqueLabels.join('\n');
+  const uniqueClassIds = Array.from(new Set(annotations.map((a) => a.classId)));
+  const classIdToYoloIdx = new Map<string, number>();
+  uniqueClassIds.forEach((id, index) => classIdToYoloIdx.set(id, index));
+  const classes = uniqueClassIds.map((id) => className(id, labelClasses)).join('\n');
 
-  // Create label to class ID map
-  const labelToId = new Map<string, number>();
-  uniqueLabels.forEach((label, index) => labelToId.set(label, index));
-
-  // Convert annotations to YOLO format (only bboxes)
   const yoloLines = annotations
     .filter((ann) => ann.type === 'bbox')
     .map((ann) => {
       const bbox = ann as BoundingBox;
-      const classId = labelToId.get(bbox.label) || 0;
-
-      // Normalize coordinates (0-1 range)
+      const yoloIdx = classIdToYoloIdx.get(bbox.classId) ?? 0;
       const xCenter = (bbox.x + bbox.width / 2) / image.width;
       const yCenter = (bbox.y + bbox.height / 2) / image.height;
-      const width = bbox.width / image.width;
-      const height = bbox.height / image.height;
-
-      return `${classId} ${xCenter.toFixed(6)} ${yCenter.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}`;
+      const w = bbox.width / image.width;
+      const h = bbox.height / image.height;
+      return `${yoloIdx} ${xCenter.toFixed(6)} ${yCenter.toFixed(6)} ${w.toFixed(6)} ${h.toFixed(6)}`;
     });
 
-  const annotationsContent = yoloLines.join('\n');
-
-  return {
-    annotations: annotationsContent,
-    classes,
-  };
+  return { annotations: yoloLines.join('\n'), classes };
 }
 
 /**

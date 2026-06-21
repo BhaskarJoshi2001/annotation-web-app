@@ -15,6 +15,7 @@ import type { ExportFormat } from '../types';
 export function useExport() {
   const image = useAnnotationStore((state) => state.image);
   const annotations = useAnnotationStore((state) => state.annotations);
+  const labelClasses = useAnnotationStore((state) => state.labelClasses);
 
   const exportMutation = useMutation({
     mutationFn: async (format: ExportFormat) => {
@@ -30,7 +31,7 @@ export function useExport() {
 
       switch (format) {
         case 'json': {
-          const data = exportAsJSON(image, annotations);
+          const data = exportAsJSON(image, annotations, labelClasses);
           downloadFile(
             JSON.stringify(data, null, 2),
             `${baseFilename}_annotations.json`,
@@ -40,7 +41,7 @@ export function useExport() {
         }
 
         case 'coco': {
-          const data = exportAsCOCO(image, annotations);
+          const data = exportAsCOCO(image, annotations, labelClasses);
           downloadFile(
             JSON.stringify(data, null, 2),
             `${baseFilename}_coco.json`,
@@ -50,7 +51,7 @@ export function useExport() {
         }
 
         case 'yolo': {
-          const data = exportAsYOLO(image, annotations);
+          const data = exportAsYOLO(image, annotations, labelClasses);
 
           // Download annotations file
           downloadFile(
