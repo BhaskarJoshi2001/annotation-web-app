@@ -23,6 +23,80 @@
 .ds .app-sidebar .userbox .meta b { font-size: var(--text-label-size); font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ds .app-sidebar .userbox .meta span { font-size: var(--text-caption-size); color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 
+/* Userbox as <button> */
+.ds .app-sidebar button.userbox { border: 0; background: transparent; font: inherit; text-align: left; width: 100%; }
+.ds .app-sidebar .userbox .chevron { width: 16px; height: 16px; flex: none; color: var(--muted-foreground); transition: transform var(--duration-fast) var(--ease-standard); }
+.ds .app-sidebar .userbox .chevron.open { transform: rotate(180deg); }
+
+/* Usage widget states */
+.ds .app-sidebar .usage-label { display: flex; align-items: center; gap: 5px; }
+.ds .app-sidebar .warn-ico { width: 13px; height: 13px; flex: none; }
+.ds .app-sidebar .usage.is-warn { background: color-mix(in srgb, var(--warning) 8%, var(--surface-variant)); border-color: color-mix(in srgb, var(--warning) 30%, var(--outline)); }
+.ds .app-sidebar .usage.is-warn .progress .bar { background: var(--warning); }
+.ds .app-sidebar .usage.is-warn .warn-ico { color: var(--warning); }
+.ds .app-sidebar .usage.is-limit { background: var(--destructive-container); border-color: color-mix(in srgb, var(--destructive) 30%, var(--outline)); }
+.ds .app-sidebar .usage.is-limit .progress .bar { background: var(--destructive); }
+.ds .app-sidebar .usage.is-limit .warn-ico { color: var(--destructive); }
+
+/* Profile popover */
+.ds .app-sidebar .sidebar-foot { position: relative; }
+.ds .app-sidebar .profile-popover { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-xl); box-shadow: var(--elevation-5); z-index: 10; overflow: hidden; }
+.ds .app-sidebar .pp-header { display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--surface-variant); border-bottom: 1px solid var(--outline-subtle); }
+.ds .app-sidebar .pp-meta { flex: 1; min-width: 0; }
+.ds .app-sidebar .pp-meta b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+.ds .app-sidebar .pp-meta > span { font-size: var(--text-caption-size); color: var(--muted-foreground); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds .app-sidebar .pp-role { display: inline-flex !important; width: auto !important; margin-top: 5px; padding: 1px 8px; background: var(--primary-container); color: var(--primary); border-radius: var(--radius-full); font-size: 10px !important; font-weight: 700 !important; }
+.ds .app-sidebar .pp-sep { height: 1px; background: var(--outline-subtle); margin: 4px 0; }
+.ds .app-sidebar .pp-theme-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px; }
+.ds .app-sidebar .pp-theme-row > span { font-size: var(--text-label-size); font-weight: 500; white-space: nowrap; }
+.ds .app-sidebar .pp-theme-seg { display: flex; background: var(--surface-variant); border-radius: var(--radius-md); padding: 2px; gap: 1px; }
+.ds .app-sidebar .pp-theme-seg button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 12px; font-weight: 500; color: var(--muted-foreground); padding: 4px 9px; border-radius: calc(var(--radius-md) - 2px); cursor: pointer; transition: all var(--duration-fast); white-space: nowrap; }
+.ds .app-sidebar .pp-theme-seg button.sel { background: var(--surface); color: var(--foreground); box-shadow: var(--elevation-1); font-weight: 600; }
+.ds .app-sidebar .pp-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: var(--text-label-size); color: var(--foreground); text-decoration: none; cursor: pointer; transition: background var(--duration-fast); }
+.ds .app-sidebar .pp-item:hover { background: var(--surface-variant); }
+.ds .app-sidebar .pp-item svg { width: 16px; height: 16px; color: var(--muted-foreground); flex: none; }
+.ds .app-sidebar .pp-signout { color: var(--destructive); }
+.ds .app-sidebar .pp-signout svg { color: var(--destructive); }
+
+/* Sidebar scrim fix — prevent invisible scrim blocking clicks */
+.ds .app-sidebar .scrim { pointer-events: none; }
+.ds .app-sidebar .scrim.open { pointer-events: auto; }
+
+/* Upgrade plan dialog */
+.ds .app-sidebar .upgrade-dlg { max-width: 560px; }
+.ds .app-sidebar .upgrade-head { padding: 22px 22px 0; }
+.ds .app-sidebar .upgrade-head h3 { margin: 0 0 4px; font-size: var(--text-title-size); font-weight: 600; }
+.ds .app-sidebar .upgrade-head p { margin: 0; font-size: var(--text-caption-size); color: var(--muted-foreground); }
+.ds .app-sidebar .upgrade-body { padding: 18px 22px; }
+.ds .app-sidebar .upgrade-foot { display: flex; justify-content: flex-end; padding: 0 22px 22px; }
+.ds .app-sidebar .plan-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; align-items: end; }
+.ds .app-sidebar .plan-card { border: 1.5px solid var(--outline); border-radius: var(--radius-xl); padding: 14px; background: var(--surface-variant); position: relative; display: flex; flex-direction: column; gap: 8px; }
+.ds .app-sidebar .plan-card.current { border-color: var(--outline-strong); background: var(--surface); }
+.ds .app-sidebar .plan-card.popular { border-color: var(--primary); background: var(--primary-subtle); padding-top: 20px; }
+.ds .app-sidebar .plan-badge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--primary); color: var(--on-primary); font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: var(--radius-full); white-space: nowrap; }
+.ds .app-sidebar .plan-name { font-size: var(--text-label-size); font-weight: 700; }
+.ds .app-sidebar .plan-price { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 1px; line-height: 1.1; }
+.ds .app-sidebar .plan-price sup { font-size: 13px; }
+.ds .app-sidebar .plan-price .freq { font-size: var(--text-caption-size); font-weight: 400; color: var(--muted-foreground); margin-left: 2px; }
+.ds .app-sidebar .plan-desc { font-size: var(--text-caption-size); color: var(--muted-foreground); line-height: 1.5; flex: 1; margin: 0; }
+.ds .app-sidebar .seats-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: var(--surface-variant); border: 1px solid var(--outline); border-radius: var(--radius-lg); }
+.ds .app-sidebar .seats-row label { flex: 1; font-size: var(--text-label-size); font-weight: 600; }
+.ds .app-sidebar .seats-stepper { display: flex; align-items: center; gap: 6px; }
+.ds .app-sidebar .seats-stepper .step-btn { appearance: none; width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--outline); background: var(--surface); cursor: pointer; font-size: 17px; line-height: 1; display: grid; place-items: center; transition: background var(--duration-fast); }
+.ds .app-sidebar .seats-stepper .step-btn:hover { background: var(--surface-variant); }
+.ds .app-sidebar .seats-stepper input { width: 48px; height: 28px; border: 1px solid var(--input-border); border-radius: var(--radius-sm); background: var(--surface); font: inherit; font-size: var(--text-label-size); font-weight: 600; text-align: center; color: var(--foreground); }
+.ds .app-sidebar .seats-stepper input::-webkit-inner-spin-button,
+.ds .app-sidebar .seats-stepper input::-webkit-outer-spin-button { appearance: none; }
+
+/* Sidebar toasts */
+.ds .app-sidebar .sb-toast-host { position: fixed; bottom: 24px; right: 24px; z-index: var(--z-toast); display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }
+.ds .app-sidebar .sb-toast { min-width: 260px; max-width: 340px; background: var(--surface); border: 1px solid var(--outline); border-left: 3px solid var(--primary); border-radius: var(--radius-lg); box-shadow: var(--elevation-4); padding: 12px 14px; transform: translateX(120%); transition: transform var(--duration-slow) var(--ease-standard); pointer-events: auto; }
+.ds .app-sidebar .sb-toast.show { transform: translateX(0); }
+.ds .app-sidebar .sb-toast b { font-size: var(--text-label-size); font-weight: 600; display: block; }
+.ds .app-sidebar .sb-toast span { font-size: var(--text-caption-size); color: var(--muted-foreground); display: block; margin-top: 2px; }
+
 @media (max-width: 880px) {
   .ds .app-sidebar { display: none; }
+  .ds .app-sidebar .plan-cards { grid-template-columns: 1fr; }
+  .ds .app-sidebar .profile-popover { position: fixed; bottom: 80px; left: 12px; right: 12px; }
 }

@@ -87,6 +87,21 @@ const HUB_CONTENT = `
     <div class="preview"><div class="pv" style="background:var(--surface);display:grid;place-items:center;padding:20px"><div style="font-family:var(--font-mono);font-size:50px;font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--foreground);display:flex;align-items:center;gap:4px">4<span style="width:42px;height:50px;border:4px solid var(--primary);border-radius:10px;display:grid;place-items:center"><span style="width:18px;height:15px;border:2px solid var(--primary);border-radius:2px"></span></span>4</div><div style="display:flex;gap:6px;margin-top:14px"><span class="badge badge-neutral" style="font-size:10px">Loading</span><span class="badge badge-warning" style="font-size:10px"><span class="dot"></span>Offline</span><span class="badge badge-destructive" style="font-size:10px">Error</span></div></div></div>
     <div class="body"><h3>System States <span class="badge badge-secondary" style="margin-left:4px">New</span></h3><p>Loading skeletons, empty states, 404, error boundary, offline, inline validation, and toasts — zero layout shift.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
   </a>
+  <a class="card" href="/dashboard">
+    <div class="preview"><div class="pv" style="background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:7px;justify-content:flex-end">
+      <div style="border:1px solid color-mix(in srgb,#fbbf24 30%,var(--outline));border-radius:8px;padding:10px;background:color-mix(in srgb,#fbbf24 8%,var(--surface-variant));display:flex;flex-direction:column;gap:5px">
+        <div style="display:flex;align-items:center;gap:5px"><div style="width:20px;height:20px;border-radius:50%;background:var(--blue-500)"></div><div style="flex:1"><div class="pv-bar" style="width:50%;height:6px;margin-bottom:2px"></div><div class="pv-bar" style="width:72%;height:5px"></div></div></div>
+        <div style="height:4px;border-radius:99px;background:var(--outline);overflow:hidden"><div style="width:88%;height:100%;background:#fbbf24;border-radius:99px"></div></div>
+        <div style="height:20px;border-radius:4px;background:var(--primary-container)"></div>
+      </div>
+      <div style="border:1px solid color-mix(in srgb,var(--destructive) 30%,var(--outline));border-radius:8px;padding:10px;background:var(--destructive-container);display:flex;flex-direction:column;gap:5px">
+        <div style="display:flex;align-items:center;gap:5px"><div style="width:20px;height:20px;border-radius:50%;background:var(--blue-500)"></div><div style="flex:1"><div class="pv-bar" style="width:50%;height:6px;margin-bottom:2px"></div><div class="pv-bar" style="width:72%;height:5px"></div></div></div>
+        <div style="height:4px;border-radius:99px;background:var(--outline);overflow:hidden"><div style="width:100%;height:100%;background:var(--destructive);border-radius:99px"></div></div>
+        <div style="height:20px;border-radius:4px;background:var(--destructive);opacity:.65"></div>
+      </div>
+    </div></div>
+    <div class="body"><h3>Sidebar States <span class="badge badge-secondary" style="margin-left:4px">New</span></h3><p>Profile popover with inline theme toggle, upgrade-plan modal with live seats stepper, and the usage widget's approaching / at-limit states — live on every app-shell page.</p><span class="go">Open<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+  </a>
 </div>
 
 <div class="note">
