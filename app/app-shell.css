@@ -52,7 +52,7 @@
 .ds .app-sidebar .pp-theme-seg { display: flex; background: var(--surface-variant); border-radius: var(--radius-md); padding: 2px; gap: 1px; }
 .ds .app-sidebar .pp-theme-seg button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 12px; font-weight: 500; color: var(--muted-foreground); padding: 4px 9px; border-radius: calc(var(--radius-md) - 2px); cursor: pointer; transition: all var(--duration-fast); white-space: nowrap; }
 .ds .app-sidebar .pp-theme-seg button.sel { background: var(--surface); color: var(--foreground); box-shadow: var(--elevation-1); font-weight: 600; }
-.ds .app-sidebar .pp-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: var(--text-label-size); color: var(--foreground); text-decoration: none; cursor: pointer; transition: background var(--duration-fast); }
+.ds .app-sidebar .pp-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: var(--text-label-size); color: var(--foreground); text-decoration: none; cursor: pointer; transition: background var(--duration-fast); width: 100%; background: none; border: none; font: inherit; text-align: left; }
 .ds .app-sidebar .pp-item:hover { background: var(--surface-variant); }
 .ds .app-sidebar .pp-item svg { width: 16px; height: 16px; color: var(--muted-foreground); flex: none; }
 .ds .app-sidebar .pp-signout { color: var(--destructive); }

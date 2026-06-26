@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { useClerk } from '@clerk/nextjs';
 import { useTheme } from './theme-provider';
 
 type NavKey = 'projects' | 'datasets' | 'models' | 'exports' | 'team' | 'settings';
@@ -79,6 +80,7 @@ export function AppSidebar({
   daysLeft?: number;
 }) {
   const { mode, setMode } = useTheme();
+  const { signOut } = useClerk();
   const [profileOpen, setProfileOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [seats, setSeats] = useState(5);
@@ -252,14 +254,14 @@ export function AppSidebar({
 
             <div className="pp-sep" />
 
-            <a href="/landing" className="pp-item pp-signout">
+            <button className="pp-item pp-signout" onClick={() => signOut({ redirectUrl: '/landing' })}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
               Sign out
-            </a>
+            </button>
           </div>
         )}
 
