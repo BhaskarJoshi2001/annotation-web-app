@@ -108,11 +108,29 @@ export default function DatasetPage() {
         img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(url); };
         img.src = url;
       });
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('width', String(dims.width));
-      formData.append('height', String(dims.height));
-      const res = await fetch(`/api/projects/${projectId}/images`, { method: 'POST', body: formData });
+      // 1. Ask the server for a presigned R2 upload URL
+      const presignRes = await fetch(`/api/projects/${projectId}/images/presign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+      });
+      if (!presignRes.ok) { const err = await presignRes.json(); throw new Error(err.error ?? 'Upload failed'); }
+      const { uploadUrl, key } = await presignRes.json() as { uploadUrl: string; key: string };
+
+      // 2. Upload the file directly to R2 — bypasses the 4.5MB serverless body limit
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      if (!putRes.ok) throw new Error('Storage upload failed');
+
+      // 3. Confirm — server verifies the object exists, then creates the DB record
+      const res = await fetch(`/api/projects/${projectId}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, filename: file.name, width: dims.width, height: dims.height }),
+      });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error ?? 'Upload failed'); }
       return res.json() as Promise<DbImage>;
     },

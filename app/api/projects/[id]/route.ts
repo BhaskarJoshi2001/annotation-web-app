@@ -1,57 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/lib/db';
-import { users, projects } from '@/lib/db/schema';
+import { projects } from '@/lib/db/schema';
+import { deleteByPrefix } from '@/lib/r2';
+import { requireOwnedProject } from '@/lib/api/guards';
+
+const updateProjectSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100).optional(),
+  archived: z.boolean().optional(),
+});
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { id } = await params;
-  const dbUser = await getDbUser(clerkId);
-  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  const guard = await requireOwnedProject(id);
+  if (!guard.ok) return guard.response;
 
-  const project = await getOwnedProject(id, dbUser.id);
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  return NextResponse.json(project);
-}
-
-async function getDbUser(clerkId: string) {
-  const rows = await db.select().from(users).where(eq(users.clerkId, clerkId));
-  return rows[0] ?? null;
-}
-
-async function getOwnedProject(projectId: string, userId: string) {
-  const rows = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, userId)));
-  return rows[0] ?? null;
+  return NextResponse.json(guard.project);
 }
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { id } = await params;
-  const dbUser = await getDbUser(clerkId);
-  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  const guard = await requireOwnedProject(id);
+  if (!guard.ok) return guard.response;
 
-  const project = await getOwnedProject(id, dbUser.id);
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const parsed = updateProjectSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid request body' },
+      { status: 400 }
+    );
+  }
 
-  const body = await req.json() as { name?: string; archived?: boolean };
   const updates: { name?: string; archived?: boolean; updatedAt: Date } = { updatedAt: new Date() };
-  if (body.name !== undefined) updates.name = body.name.trim();
-  if (body.archived !== undefined) updates.archived = body.archived;
+  if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+  if (parsed.data.archived !== undefined) updates.archived = parsed.data.archived;
 
   const [updated] = await db
     .update(projects)
@@ -66,15 +55,14 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { id } = await params;
-  const dbUser = await getDbUser(clerkId);
-  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  const guard = await requireOwnedProject(id);
+  if (!guard.ok) return guard.response;
 
-  const project = await getOwnedProject(id, dbUser.id);
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // Storage first, best-effort — the DB cascade only removes rows, not R2
+  // objects. If cleanup partially fails the delete still goes through;
+  // stragglers are orphans we can sweep later, not broken UX.
+  await deleteByPrefix(`projects/${id}/`).catch(() => {});
 
   await db.delete(projects).where(eq(projects.id, id));
 

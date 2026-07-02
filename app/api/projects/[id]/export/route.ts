@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
+import { z } from 'zod';
 import JSZip from 'jszip';
 import { db } from '@/lib/db';
-import { users, projects, images, annotations, labelClasses } from '@/lib/db/schema';
+import { images, annotations, labelClasses } from '@/lib/db/schema';
+import { requireOwnedProject } from '@/lib/api/guards';
 
-type Fmt = 'coco' | 'yolo' | 'json' | 'csv';
+const formatSchema = z.enum(['coco', 'yolo', 'json', 'csv']);
 
 interface AnnData {
   type: 'bbox' | 'polygon';
@@ -18,24 +19,17 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { id: projectId } = await params;
+  const guard = await requireOwnedProject(projectId);
+  if (!guard.ok) return guard.response;
+  const { project } = guard;
+
   const { searchParams } = new URL(req.url);
-  const format = (searchParams.get('format') ?? 'coco') as Fmt;
+  const parsedFmt = formatSchema.safeParse(searchParams.get('format') ?? 'coco');
+  if (!parsedFmt.success)
+    return NextResponse.json({ error: 'Unsupported format' }, { status: 400 });
+  const format = parsedFmt.data;
   const includeEmpty = searchParams.get('includeEmpty') === 'true';
-
-  const userRows = await db.select().from(users).where(eq(users.clerkId, clerkId));
-  const dbUser = userRows[0];
-  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-  const projectRows = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, dbUser.id)));
-  const project = projectRows[0];
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const projectImages = await db.select().from(images).where(eq(images.projectId, projectId));
   const classes = await db.select().from(labelClasses).where(eq(labelClasses.projectId, projectId));

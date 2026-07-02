@@ -1,38 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { eq, and } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/lib/db';
-import { users, projects, labelClasses } from '@/lib/db/schema';
+import { labelClasses } from '@/lib/db/schema';
+import { requireOwnedProject } from '@/lib/api/guards';
 
-async function verifyOwnership(clerkId: string, projectId: string) {
-  const userRows = await db.select().from(users).where(eq(users.clerkId, clerkId));
-  const dbUser = userRows[0];
-  if (!dbUser) return null;
-  const projectRows = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, dbUser.id)));
-  if (!projectRows[0]) return null;
-  return dbUser;
-}
+const createClassSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(50),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Invalid color').default('#3b82f6'),
+});
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { id: projectId } = await params;
-  const dbUser = await verifyOwnership(clerkId, projectId);
-  if (!dbUser) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const guard = await requireOwnedProject(projectId);
+  if (!guard.ok) return guard.response;
 
-  const body = await req.json() as { name: string; color: string };
-  if (!body.name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 });
+  const parsed = createClassSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid request body' },
+      { status: 400 }
+    );
+  }
 
   const [cls] = await db
     .insert(labelClasses)
-    .values({ projectId, name: body.name.trim(), color: body.color ?? '#3b82f6' })
+    .values({ projectId, name: parsed.data.name, color: parsed.data.color })
     .returning();
 
   return NextResponse.json(cls, { status: 201 });

@@ -1,33 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/lib/db';
-import { users, images, projects, annotations } from '@/lib/db/schema';
+import { images, annotations } from '@/lib/db/schema';
+import { requireOwnedImage } from '@/lib/api/guards';
 
-async function verifyAccess(imageId: string, clerkId: string) {
-  const userRows = await db.select().from(users).where(eq(users.clerkId, clerkId));
-  const dbUser = userRows[0];
-  if (!dbUser) return null;
+// Geometry fields pass through into the JSONB `data` column as-is;
+// only the columns we index on get strict validation.
+const annotationSchema = z.looseObject({
+  id: z.uuid(),
+  classId: z.uuid().nullable().optional(),
+  type: z.enum(['bbox', 'polygon']),
+});
 
-  const rows = await db
-    .select({ image: images })
-    .from(images)
-    .innerJoin(projects, eq(images.projectId, projects.id))
-    .where(and(eq(images.id, imageId), eq(projects.ownerId, dbUser.id)));
-
-  return rows[0] ? dbUser : null;
-}
+const saveSchema = z.array(annotationSchema).max(500);
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { id: imageId } = await params;
-  const dbUser = await verifyAccess(imageId, clerkId);
-  if (!dbUser) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const guard = await requireOwnedImage(imageId);
+  if (!guard.ok) return guard.response;
 
   const rows = await db
     .select()
@@ -41,35 +35,42 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { id: imageId } = await params;
-  const dbUser = await verifyAccess(imageId, clerkId);
-  if (!dbUser) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const guard = await requireOwnedImage(imageId);
+  if (!guard.ok) return guard.response;
 
-  const body = await req.json() as { id: string; classId?: string; [key: string]: unknown }[];
+  // Validate before any write — a bad payload must not get past the delete
+  const parsed = saveSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success)
+    return NextResponse.json({ error: 'Invalid annotations payload' }, { status: 400 });
 
-  // Replace all annotations for this image atomically
-  await db.delete(annotations).where(eq(annotations.imageId, imageId));
+  const anns = parsed.data;
+  const status = anns.length > 0 ? 'in_progress' : 'unlabeled';
 
-  if (body.length > 0) {
-    await db.insert(annotations).values(
-      body.map((ann) => ({
-        id: ann.id,
-        imageId,
-        classId: ann.classId ?? null,
-        data: ann,
-      }))
-    );
-  }
-
-  // Update image status
-  const status = body.length > 0 ? 'in_progress' : 'unlabeled';
-  await db
+  const deleteOld = db.delete(annotations).where(eq(annotations.imageId, imageId));
+  const updateStatus = db
     .update(images)
     .set({ status, updatedAt: new Date() })
     .where(eq(images.id, imageId));
 
-  return NextResponse.json({ saved: body.length });
+  // db.batch → one HTTP request, one implicit transaction on Neon.
+  // If any statement fails, none commit — the old annotations survive.
+  if (anns.length > 0) {
+    await db.batch([
+      deleteOld,
+      db.insert(annotations).values(
+        anns.map((ann) => ({
+          id: ann.id,
+          imageId,
+          classId: ann.classId ?? null,
+          data: ann,
+        }))
+      ),
+      updateStatus,
+    ]);
+  } else {
+    await db.batch([deleteOld, updateStatus]);
+  }
+
+  return NextResponse.json({ saved: anns.length });
 }

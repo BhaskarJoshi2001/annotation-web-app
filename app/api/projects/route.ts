@@ -1,43 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
-import { eq, count, inArray, sql } from 'drizzle-orm';
+import { eq, count, inArray, sql, desc } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/lib/db';
-import { users, projects, images, labelClasses } from '@/lib/db/schema';
+import { projects, images, labelClasses } from '@/lib/db/schema';
+import { requireUser } from '@/lib/api/guards';
 
 const CLASS_COLORS = ['#3b6af5', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316', '#84cc16'];
 
-async function upsertUser(clerkId: string) {
-  const existing = await db.select().from(users).where(eq(users.clerkId, clerkId));
-  if (existing[0]) return existing[0];
-
-  const clerkUser = await currentUser();
-  if (!clerkUser) return null;
-
-  const name =
-    `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() ||
-    clerkUser.emailAddresses[0]?.emailAddress?.split('@')[0] ||
-    'User';
-  const email = clerkUser.emailAddresses[0]?.emailAddress ?? '';
-
-  const [inserted] = await db
-    .insert(users)
-    .values({ clerkId, name, email, avatarUrl: clerkUser.imageUrl ?? null })
-    .returning();
-  return inserted;
-}
+const createProjectSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100),
+  taskType: z.enum(['detection', 'segmentation', 'classification', 'keypoints']),
+  classes: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+});
 
 export async function GET() {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const dbUser = await upsertUser(clerkId);
-  if (!dbUser) return NextResponse.json({ error: 'Could not resolve user' }, { status: 500 });
+  const guard = await requireUser();
+  if (!guard.ok) return guard.response;
+  const dbUser = guard.user;
 
   const rows = await db
     .select()
     .from(projects)
     .where(eq(projects.ownerId, dbUser.id))
-    .orderBy(projects.updatedAt);
+    .orderBy(desc(projects.updatedAt));
 
   if (rows.length === 0) return NextResponse.json([]);
 
@@ -73,21 +58,22 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const guard = await requireUser();
+  if (!guard.ok) return guard.response;
+  const dbUser = guard.user;
 
-  const dbUser = await upsertUser(clerkId);
-  if (!dbUser) return NextResponse.json({ error: 'Could not resolve user' }, { status: 500 });
-
-  const body = await req.json();
-  const { name, taskType, classes = [] } = body as { name: string; taskType: string; classes: string[] };
-
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  if (!taskType) return NextResponse.json({ error: 'Task type is required' }, { status: 400 });
+  const parsed = createProjectSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid request body' },
+      { status: 400 }
+    );
+  }
+  const { name, taskType, classes } = parsed.data;
 
   const [project] = await db
     .insert(projects)
-    .values({ ownerId: dbUser.id, name: name.trim(), taskType })
+    .values({ ownerId: dbUser.id, name, taskType })
     .returning();
 
   if (classes.length > 0) {

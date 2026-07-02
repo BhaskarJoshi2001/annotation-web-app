@@ -1,39 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/lib/db';
-import { users, projects, labelClasses } from '@/lib/db/schema';
+import { labelClasses } from '@/lib/db/schema';
+import { requireOwnedClass } from '@/lib/api/guards';
 
-async function verifyClassOwnership(clerkId: string, classId: string) {
-  const userRows = await db.select().from(users).where(eq(users.clerkId, clerkId));
-  const dbUser = userRows[0];
-  if (!dbUser) return null;
-
-  // join label_classes → projects to check ownership
-  const rows = await db
-    .select({ cls: labelClasses, project: projects })
-    .from(labelClasses)
-    .innerJoin(projects, eq(labelClasses.projectId, projects.id))
-    .where(and(eq(labelClasses.id, classId), eq(projects.ownerId, dbUser.id)));
-
-  return rows[0]?.cls ?? null;
-}
+const updateClassSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(50).optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Invalid color').optional(),
+});
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; classId: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { classId } = await params;
-  const existing = await verifyClassOwnership(clerkId, classId);
-  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const guard = await requireOwnedClass(classId);
+  if (!guard.ok) return guard.response;
 
-  const body = await req.json() as { name?: string; color?: string };
+  const parsed = updateClassSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid request body' },
+      { status: 400 }
+    );
+  }
+
   const updates: { name?: string; color?: string } = {};
-  if (body.name !== undefined) updates.name = body.name.trim();
-  if (body.color !== undefined) updates.color = body.color;
+  if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+  if (parsed.data.color !== undefined) updates.color = parsed.data.color;
+  if (Object.keys(updates).length === 0) return NextResponse.json(guard.cls);
 
   const [updated] = await db
     .update(labelClasses)
@@ -48,12 +44,9 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; classId: string }> }
 ) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { classId } = await params;
-  const existing = await verifyClassOwnership(clerkId, classId);
-  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const guard = await requireOwnedClass(classId);
+  if (!guard.ok) return guard.response;
 
   await db.delete(labelClasses).where(eq(labelClasses.id, classId));
   return new NextResponse(null, { status: 204 });
