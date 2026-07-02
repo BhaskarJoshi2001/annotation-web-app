@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAnnotationStore } from '@/lib/store/annotation-store';
+import { useLabelClassActions } from '@/lib/hooks/use-label-class-actions';
 import type { Annotation, BoundingBox, LabelClass, Polygon } from '@/lib/types';
 
 type Tab = 'annotations' | 'properties' | 'classes';
@@ -92,18 +93,24 @@ function ClassRow({
   );
 }
 
-function AddClassForm({ onAdd }: { onAdd: (name: string, color: string) => void }) {
+function AddClassForm({ onAdd }: { onAdd: (name: string, color: string) => Promise<void> }) {
   const labelClasses = useAnnotationStore((s) => s.labelClasses);
   const DEFAULT_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
   const [name, setName] = useState('');
   const [color, setColor] = useState(DEFAULT_COLORS[labelClasses.length % DEFAULT_COLORS.length]);
+  const [adding, setAdding] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    onAdd(trimmed, color);
-    setName('');
-    setColor(DEFAULT_COLORS[(labelClasses.length + 1) % DEFAULT_COLORS.length]);
+    if (!trimmed || adding) return;
+    setAdding(true);
+    try {
+      await onAdd(trimmed, color);
+      setName('');
+      setColor(DEFAULT_COLORS[(labelClasses.length + 1) % DEFAULT_COLORS.length]);
+    } finally {
+      setAdding(false);
+    }
   };
 
   return (
@@ -128,18 +135,24 @@ function AddClassForm({ onAdd }: { onAdd: (name: string, color: string) => void 
       <button
         className="btn btn-tonal btn-sm btn-block"
         onClick={submit}
-        disabled={!name.trim()}
+        disabled={!name.trim() || adding}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 5v14M5 12h14" strokeLinecap="round" />
         </svg>
-        Add class
+        {adding ? 'Adding…' : 'Add class'}
       </button>
     </div>
   );
 }
 
-export function Inspector() {
+export function Inspector({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab?: Tab;
+  onTabChange?: (tab: Tab) => void;
+} = {}) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const labelClasses = useAnnotationStore((s) => s.labelClasses);
   const activeClassId = useAnnotationStore((s) => s.activeClassId);
@@ -147,12 +160,12 @@ export function Inspector() {
   const setSelected = useAnnotationStore((s) => s.setSelectedAnnotation);
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
   const deleteAnnotation = useAnnotationStore((s) => s.deleteAnnotation);
-  const addLabelClass = useAnnotationStore((s) => s.addLabelClass);
-  const updateLabelClass = useAnnotationStore((s) => s.updateLabelClass);
-  const deleteLabelClass = useAnnotationStore((s) => s.deleteLabelClass);
   const setActiveClass = useAnnotationStore((s) => s.setActiveClass);
+  const classActions = useLabelClassActions();
 
-  const [tab, setTab] = useState<Tab>('annotations');
+  const [internalTab, setInternalTab] = useState<Tab>('annotations');
+  const tab = activeTab ?? internalTab;
+  const setTab = (t: Tab) => { setInternalTab(t); onTabChange?.(t); };
 
   const selected = annotations.find((a) => a.id === selectedId) ?? null;
 
@@ -314,20 +327,26 @@ export function Inspector() {
                 <p style={{ fontSize: 'var(--text-caption-size)' }}>Define classes first, then draw annotations. Each annotation belongs to a class.</p>
               </div>
             ) : (
-              labelClasses.map((cls) => (
-                <ClassRow
-                  key={cls.id}
-                  cls={cls}
-                  isActive={cls.id === activeClassId}
-                  count={classCountMap.get(cls.id) ?? 0}
-                  onActivate={() => setActiveClass(cls.id)}
-                  onDelete={() => deleteLabelClass(cls.id)}
-                  onUpdate={(updates) => updateLabelClass(cls.id, updates)}
-                />
+              labelClasses.map((cls, i) => (
+                <div key={cls.id} style={{ position: 'relative' }}>
+                  {i < 9 && (
+                    <kbd style={{ position: 'absolute', right: 36, top: '50%', transform: 'translateY(-50%)', fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)', background: 'var(--surface-variant)', borderRadius: 3, padding: '1px 4px', zIndex: 1 }}>
+                      {i + 1}
+                    </kbd>
+                  )}
+                  <ClassRow
+                    cls={cls}
+                    isActive={cls.id === activeClassId}
+                    count={classCountMap.get(cls.id) ?? 0}
+                    onActivate={() => setActiveClass(cls.id)}
+                    onDelete={() => classActions.remove(cls.id)}
+                    onUpdate={(updates) => classActions.update(cls.id, updates)}
+                  />
+                </div>
               ))
             )}
           </div>
-          <AddClassForm onAdd={(name, color) => addLabelClass(name, color)} />
+          <AddClassForm onAdd={(name, color) => classActions.add(name, color).then(() => {})} />
         </div>
       )}
     </aside>

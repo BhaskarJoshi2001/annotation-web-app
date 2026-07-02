@@ -29,6 +29,9 @@ const TOOLS: Tool[] = [
 export function ToolRail() {
   const selectedTool = useAnnotationStore((s) => s.selectedTool);
   const setSelectedTool = useAnnotationStore((s) => s.setSelectedTool);
+  const labelClasses = useAnnotationStore((s) => s.labelClasses);
+  const activeClassId = useAnnotationStore((s) => s.activeClassId);
+  const setActiveClass = useAnnotationStore((s) => s.setActiveClass);
 
   return (
     <nav className="rail" aria-label="Tools">
@@ -46,6 +49,45 @@ export function ToolRail() {
           </button>
         ))}
       </div>
+
+      {/* Active class strip */}
+      {labelClasses.length > 0 && (
+        <>
+          <div className="sep" />
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px', overflowY: 'auto', maxHeight: 260 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--muted-foreground)', textAlign: 'center', marginBottom: 4, textTransform: 'uppercase' }}>
+              Class
+            </div>
+            {labelClasses.slice(0, 9).map((cls, i) => {
+              const isActive = cls.id === activeClassId;
+              return (
+                <button
+                  key={cls.id}
+                  onClick={() => setActiveClass(cls.id)}
+                  title={`${cls.name} — press ${i + 1}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '5px 8px', borderRadius: 'var(--radius-sm)',
+                    background: isActive ? 'var(--primary-subtle)' : 'transparent',
+                    border: isActive ? '1px solid var(--primary)' : '1px solid transparent',
+                    cursor: 'pointer', width: '100%', textAlign: 'left',
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: cls.color, flex: 'none', display: 'inline-block' }} />
+                  <span style={{ flex: 1, fontSize: 11, fontWeight: isActive ? 600 : 400, color: isActive ? 'var(--primary)' : 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 52 }}>
+                    {cls.name}
+                  </span>
+                  <kbd style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)', background: 'var(--surface-variant)', borderRadius: 3, padding: '1px 3px', flex: 'none' }}>
+                    {i + 1}
+                  </kbd>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       <div className="rail-foot">
         <button className="tool" aria-label="Auto-label (coming soon)" disabled title="Auto-label — coming soon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" /><path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></svg>

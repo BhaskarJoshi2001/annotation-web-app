@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { useClerk } from '@clerk/nextjs';
+import { useClerk, useUser } from '@clerk/nextjs';
 import { useTheme } from './theme-provider';
 
 type NavKey = 'projects' | 'datasets' | 'models' | 'exports' | 'team' | 'settings';
@@ -23,7 +23,7 @@ const NAV: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>,
   },
   {
-    key: 'datasets', label: 'Datasets', href: '/dataset',
+    key: 'datasets', label: 'Datasets', href: '/dashboard',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></svg>,
   },
   {
@@ -81,6 +81,11 @@ export function AppSidebar({
 }) {
   const { mode, setMode } = useTheme();
   const { signOut } = useClerk();
+  const { user } = useUser();
+
+  const displayName = user?.fullName || user?.firstName || user?.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User';
+  const displayEmail = user?.emailAddresses[0]?.emailAddress ?? '';
+  const initials = displayName.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
   const [profileOpen, setProfileOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [seats, setSeats] = useState(5);
@@ -208,10 +213,13 @@ export function AppSidebar({
         {profileOpen && (
           <div className="profile-popover" ref={profileRef} role="dialog" aria-label="Account menu">
             <div className="pp-header">
-              <span className="avatar md" style={{ background: 'var(--blue-500)', color: '#fff' }}>BJ</span>
+              {user?.imageUrl
+                ? <img src={user.imageUrl} alt={displayName} className="avatar md" style={{ objectFit: 'cover' }} />
+                : <span className="avatar md" style={{ background: 'var(--blue-500)', color: '#fff' }}>{initials}</span>
+              }
               <div className="pp-meta">
-                <b>Bhaskar Joshi</b>
-                <span>bj8212553@gmail.com</span>
+                <b>{displayName}</b>
+                <span>{displayEmail}</span>
                 <span className="pp-role">Owner</span>
               </div>
             </div>
@@ -272,8 +280,11 @@ export function AppSidebar({
           aria-expanded={profileOpen}
           aria-haspopup="dialog"
         >
-          <span className="avatar md" style={{ background: 'var(--blue-500)', color: '#fff' }}>BJ</span>
-          <div className="meta"><b>Bhaskar Joshi</b><span>bj8212553@gmail.com</span></div>
+          {user?.imageUrl
+            ? <img src={user.imageUrl} alt={displayName} className="avatar md" style={{ objectFit: 'cover' }} />
+            : <span className="avatar md" style={{ background: 'var(--blue-500)', color: '#fff' }}>{initials}</span>
+          }
+          <div className="meta"><b>{displayName}</b><span>{displayEmail}</span></div>
           <svg className={`chevron${profileOpen ? ' open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 9l4 4 4-4" />
           </svg>

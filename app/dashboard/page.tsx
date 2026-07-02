@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@/components/theme-provider';
 import { AppSidebar } from '@/components/app-sidebar';
 import '../ds.css';
@@ -21,6 +22,18 @@ interface Project {
   extra: number;
   updated: string;
   classes: number;
+}
+
+interface ApiProject {
+  id: string;
+  name: string;
+  taskType: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  imageCount: number;
+  labeledCount: number;
+  classCount: number;
 }
 
 interface Toast {
@@ -61,38 +74,48 @@ const avatarColors: Record<string, string> = {
   default: 'var(--neutral-400)',
 };
 
-const STATS: Stat[] = [
-  {
-    lab: 'Total projects', val: '7', delta: '+2 this month', dir: 'up',
-    color: 'var(--primary)', bg: 'var(--primary-subtle)', spark: 'up',
-    icon: (<><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
-  },
-  {
-    lab: 'Images labeled', val: '42.8k', delta: '+5.1k this week', dir: 'up',
-    color: 'var(--success)', bg: 'var(--success-container)', spark: 'up',
-    icon: (<rect x="4" y="4" width="16" height="16" rx="1.5" strokeDasharray="3 2.5" />),
-  },
-  {
-    lab: 'Annotations', val: '311k', delta: '+18% vs last mo', dir: 'up',
-    color: 'var(--secondary)', bg: 'var(--secondary-container)', spark: 'up',
-    icon: (<path d="M4 3l7.5 18 2.3-7.2L21 11.5z" />),
-  },
-  {
-    lab: 'Avg. accuracy', val: '96.4%', delta: 'Stable', dir: 'flat',
-    color: 'var(--warning)', bg: 'var(--warning-container)', spark: 'flat',
-    icon: (<><circle cx="12" cy="12" r="9" /><path d="M8 12l3 3 5-6" strokeLinecap="round" strokeLinejoin="round" /></>),
-  },
-];
+const TASK_SCENE: Record<string, keyof typeof scenes> = {
+  detection: 'street',
+  segmentation: 'aerial',
+  classification: 'retail',
+  keypoints: 'medical',
+};
 
-const INITIAL_PROJECTS: Project[] = [
-  { id: 'p1', name: 'Traffic — Q3 dashcam', imgs: 2480, done: 82, status: 'active', scene: 'street', team: ['AM', 'KP', 'JR'], extra: 4, updated: '2m ago', classes: 6 },
-  { id: 'p2', name: 'Warehouse pallets', imgs: 1840, done: 64, status: 'active', scene: 'factory', team: ['JR', 'MN'], extra: 2, updated: '1h ago', classes: 4 },
-  { id: 'p3', name: 'Retail shelf audit', imgs: 3920, done: 97, status: 'review', scene: 'retail', team: ['KP', 'AM', 'SL', 'JR'], extra: 6, updated: '3h ago', classes: 11 },
-  { id: 'p4', name: 'Drone crop survey', imgs: 980, done: 41, status: 'active', scene: 'drone', team: ['SL'], extra: 1, updated: 'yesterday', classes: 8 },
-  { id: 'p5', name: 'Medical X-ray triage', imgs: 560, done: 100, status: 'review', scene: 'medical', team: ['MN', 'AM'], extra: 3, updated: '2d ago', classes: 5 },
-  { id: 'p6', name: 'Aerial land use', imgs: 1320, done: 23, status: 'active', scene: 'aerial', team: ['JR', 'KP'], extra: 0, updated: '4d ago', classes: 9 },
-  { id: 'p7', name: 'Invoice fields OCR', imgs: 740, done: 88, status: 'archived', scene: 'docs', team: ['SL', 'MN'], extra: 1, updated: '2w ago', classes: 14 },
-];
+const sceneKeys = Object.keys(scenes) as (keyof typeof scenes)[];
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function toProject(p: ApiProject, idx: number): Project {
+  return {
+    id: p.id,
+    name: p.name,
+    imgs: p.imageCount,
+    done: p.imageCount > 0 ? Math.round((p.labeledCount / p.imageCount) * 100) : 0,
+    status: p.archived ? 'archived' : 'active',
+    scene: TASK_SCENE[p.taskType] ?? sceneKeys[idx % sceneKeys.length],
+    team: [],
+    extra: 0,
+    updated: relativeTime(p.updatedAt),
+    classes: p.classCount,
+  };
+}
+
+function fmtNum(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(n);
+}
+
 
 const FILTERS: { label: string; value: 'all' | Status }[] = [
   { label: 'All', value: 'all' },
@@ -155,14 +178,46 @@ function Avatars({ team, extra }: { team: string[]; extra: number }) {
 export default function DashboardPage() {
   const router = useRouter();
   const { resolved, setMode } = useTheme();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | Status>('all');
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const { data: apiProjects = [] } = useQuery<ApiProject[]>({
+    queryKey: ['projects'],
+    queryFn: () => fetch('/api/projects').then((r) => r.json()),
+  });
+  const projects = useMemo(() => apiProjects.map(toProject), [apiProjects]);
+
+  const totalImages = apiProjects.reduce((s, p) => s + p.imageCount, 0);
+  const totalLabeled = apiProjects.reduce((s, p) => s + p.labeledCount, 0);
+  const labelRate = totalImages > 0 ? Math.round((totalLabeled / totalImages) * 100) : 0;
+
+  const STATS: Stat[] = [
+    {
+      lab: 'Total projects', val: String(apiProjects.length), delta: `${apiProjects.filter(p => !p.archived).length} active`, dir: 'up',
+      color: 'var(--primary)', bg: 'var(--primary-subtle)', spark: 'up',
+      icon: (<><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
+    },
+    {
+      lab: 'Total images', val: fmtNum(totalImages), delta: `${fmtNum(totalLabeled)} labeled`, dir: 'up',
+      color: 'var(--success)', bg: 'var(--success-container)', spark: 'up',
+      icon: (<rect x="4" y="4" width="16" height="16" rx="1.5" strokeDasharray="3 2.5" />),
+    },
+    {
+      lab: 'Label rate', val: `${labelRate}%`, delta: totalImages > 0 ? `${fmtNum(totalImages - totalLabeled)} remaining` : 'No images yet', dir: labelRate > 50 ? 'up' : 'flat',
+      color: 'var(--secondary)', bg: 'var(--secondary-container)', spark: labelRate > 50 ? 'up' : 'flat',
+      icon: (<path d="M4 3l7.5 18 2.3-7.2L21 11.5z" />),
+    },
+    {
+      lab: 'Classes defined', val: fmtNum(apiProjects.reduce((s, p) => s + p.classCount, 0)), delta: `across ${apiProjects.length} project${apiProjects.length !== 1 ? 's' : ''}`, dir: 'flat',
+      color: 'var(--warning)', bg: 'var(--warning-container)', spark: 'flat',
+      icon: (<><circle cx="12" cy="12" r="9" /><path d="M8 12l3 3 5-6" strokeLinecap="round" strokeLinejoin="round" /></>),
+    },
+  ];
+
   const [removing, setRemoving] = useState<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
-  const nextId = useRef(100);
 
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -237,7 +292,47 @@ export default function DashboardPage() {
     setCtxMenu({ id, x, y });
   }
 
-  function handleOpen(id: string) { setCtxMenu(null); void id; router.push('/dataset'); }
+  function handleOpen(id: string) { setCtxMenu(null); router.push(`/dataset/${id}`); }
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      fetch(`/api/projects/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
+      fetch(`/api/projects/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => fetch(`/api/projects/${id}`, { method: 'DELETE' }),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setRemoving(s => { const n = new Set(s); n.delete(id); return n; });
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (body: { name: string; taskType: string; classes: string[] }) =>
+      fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    onSuccess: (data: ApiProject) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      markNew(data.id);
+      addToast('Created', `"${data.name}" is ready. Upload images to get started.`);
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (body: { name: string; taskType: string; classes: string[] }) =>
+      fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    onSuccess: (data: ApiProject, _vars, _ctx) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      markNew(data.id);
+      addToast('Duplicated', `"${data.name}" duplicated.`);
+    },
+  });
 
   function handleRenameOpen(id: string) {
     const p = getP(id); setCtxMenu(null);
@@ -247,7 +342,7 @@ export default function DashboardPage() {
   function handleRenameSave() {
     const val = rename.value.trim();
     if (!val || val === rename.orig) return;
-    setProjects(ps => ps.map(p => p.id === rename.id ? { ...p, name: val } : p));
+    renameMutation.mutate({ id: rename.id, name: val });
     setRename(p => ({ ...p, open: false }));
     addToast('Renamed', `Project renamed to "${val}".`);
   }
@@ -255,10 +350,8 @@ export default function DashboardPage() {
   function handleDuplicate(id: string) {
     const p = getP(id); setCtxMenu(null);
     if (!p) return;
-    const newId = `p${++nextId.current}`;
-    setProjects(ps => [...ps, { ...p, id: newId, name: `Copy of ${p.name}`, updated: 'just now', status: 'active' as Status }]);
-    markNew(newId);
-    addToast('Duplicated', `"${p.name}" duplicated.`);
+    const apiP = apiProjects.find(a => a.id === id);
+    duplicateMutation.mutate({ name: `Copy of ${p.name}`, taskType: apiP?.taskType ?? 'detection', classes: [] });
   }
 
   function handleExportAll(id: string) {
@@ -270,7 +363,7 @@ export default function DashboardPage() {
     const p = getP(id); setCtxMenu(null);
     if (!p) return;
     const willArchive = p.status !== 'archived';
-    setProjects(ps => ps.map(q => q.id === id ? { ...q, status: willArchive ? 'archived' : 'active' } : q));
+    archiveMutation.mutate({ id, archived: willArchive });
     addToast(willArchive ? 'Archived' : 'Unarchived', `"${p.name}" ${willArchive ? 'archived' : 'moved back to active'}.`);
   }
 
@@ -286,11 +379,8 @@ export default function DashboardPage() {
     setTimeout(() => {
       setDel({ open: false, id: '', name: '', busy: false });
       setRemoving(s => new Set([...s, id]));
-      setTimeout(() => {
-        setProjects(ps => ps.filter(p => p.id !== id));
-        setRemoving(s => { const n = new Set(s); n.delete(id); return n; });
-        addToast('Deleted', `"${name}" has been permanently deleted.`);
-      }, 320);
+      deleteMutation.mutate(id);
+      setTimeout(() => addToast('Deleted', `"${name}" has been permanently deleted.`), 320);
     }, 1000);
   }
 
@@ -314,16 +404,8 @@ export default function DashboardPage() {
   function createProject() {
     const name = np.name.trim();
     if (!name) return;
-    const id = `p${++nextId.current}`;
-    const sceneKeys = Object.keys(scenes) as (keyof typeof scenes)[];
-    setProjects(ps => [...ps, {
-      id, name, imgs: 0, done: 0, status: 'active',
-      scene: sceneKeys[nextId.current % sceneKeys.length],
-      team: ['AM'], extra: 0, updated: 'just now', classes: np.classes.length,
-    }]);
+    createMutation.mutate({ name, taskType: np.taskType, classes: np.classes });
     setNp(p => ({ ...p, open: false }));
-    markNew(id);
-    addToast('Created', `"${name}" is ready. Upload images to get started.`);
   }
 
   const IcClose = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>;
@@ -415,8 +497,8 @@ export default function DashboardPage() {
                   className={`proj${removing.has(p.id) ? ' removing' : ''}${newIds.has(p.id) ? ' entering' : ''}`}
                   role="button"
                   tabIndex={0}
-                  onClick={() => router.push('/dataset')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/dataset'); } }}
+                  onClick={() => router.push(`/dataset/${p.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/dataset/${p.id}`); } }}
                 >
                   <div className="cover">
                     <div className="scene" style={{ background: scenes[p.scene] }} />

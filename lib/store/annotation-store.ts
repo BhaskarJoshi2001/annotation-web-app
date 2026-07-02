@@ -24,9 +24,12 @@ interface AnnotationStore {
   polygonDrawing: PolygonDrawingState;
   history: HistoryState[];
   historyStep: number;
+  projectId: string | null;
 
   setImage: (image: ImageData) => void;
   clearImage: () => void;
+  setAnnotations: (annotations: Annotation[]) => void;
+  setLabelClasses: (classes: LabelClass[]) => void;
   addAnnotation: (annotation: Annotation) => void;
   updateAnnotation: <T extends Annotation>(id: string, updates: Partial<T>) => void;
   deleteAnnotation: (id: string) => void;
@@ -39,7 +42,9 @@ interface AnnotationStore {
   redo: () => void;
   _addToHistory: (annotations: Annotation[]) => void;
 
+  setProjectId: (id: string | null) => void;
   addLabelClass: (name: string, color?: string) => LabelClass;
+  _insertLabelClass: (cls: LabelClass) => void;
   updateLabelClass: (id: string, updates: Partial<Pick<LabelClass, 'name' | 'color'>>) => void;
   deleteLabelClass: (id: string) => void;
   setActiveClass: (id: string | null) => void;
@@ -68,6 +73,7 @@ export const useAnnotationStore = create<AnnotationStore>()(
         polygonDrawing: { isDrawing: false, points: [], previewPoint: null },
         history: [{ annotations: [] }],
         historyStep: 0,
+        projectId: null,
 
         _addToHistory: (annotations) => {
           const { history, historyStep } = get();
@@ -95,6 +101,18 @@ export const useAnnotationStore = create<AnnotationStore>()(
           history: [{ annotations: [] }],
           historyStep: 0,
           selectedAnnotationId: null,
+        }),
+
+        setAnnotations: (annotations) => set({
+          annotations,
+          history: [{ annotations: [...annotations] }],
+          historyStep: 0,
+          selectedAnnotationId: null,
+        }),
+
+        setLabelClasses: (classes) => set({
+          labelClasses: classes,
+          activeClassId: classes[0]?.id ?? null,
         }),
 
         addAnnotation: (annotation) => {
@@ -171,6 +189,13 @@ export const useAnnotationStore = create<AnnotationStore>()(
             labelClasses: remaining,
             activeClassId: activeClassId === id ? (remaining[0]?.id ?? null) : activeClassId,
           });
+        },
+
+        setProjectId: (id) => set({ projectId: id }),
+
+        _insertLabelClass: (cls) => {
+          const { labelClasses, activeClassId } = get();
+          set({ labelClasses: [...labelClasses, cls], activeClassId: activeClassId ?? cls.id });
         },
 
         setActiveClass: (id) => set({ activeClassId: id }),

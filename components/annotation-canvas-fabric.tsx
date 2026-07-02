@@ -39,7 +39,25 @@ function imageToScene(p: PointType, pl: ImagePlacement): PointType {
   return { x: p.x * pl.scale + pl.offsetX, y: p.y * pl.scale + pl.offsetY };
 }
 
-export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref) => {
+function clampToImage(p: PointType, pl: ImagePlacement, imgW: number, imgH: number): PointType {
+  return {
+    x: Math.max(pl.offsetX, Math.min(pl.offsetX + imgW * pl.scale, p.x)),
+    y: Math.max(pl.offsetY, Math.min(pl.offsetY + imgH * pl.scale, p.y)),
+  };
+}
+
+function clampImageCoords(p: PointType, imgW: number, imgH: number): PointType {
+  return {
+    x: Math.max(0, Math.min(imgW, p.x)),
+    y: Math.max(0, Math.min(imgH, p.y)),
+  };
+}
+
+interface AnnotationCanvasProps {
+  onAnnotationAdded?: (id: string) => void;
+}
+
+export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCanvasProps>(({ onAnnotationAdded }, ref) => {
   const image = useAnnotationStore((state) => state.image);
   const annotations = useAnnotationStore((state) => state.annotations);
   const labelClasses = useAnnotationStore((state) => state.labelClasses);
@@ -78,6 +96,9 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const onAnnotationAddedRef = useRef(onAnnotationAdded);
+  useEffect(() => { onAnnotationAddedRef.current = onAnnotationAdded; }, [onAnnotationAdded]);
 
   // Expose canvas ref to parent
   useImperativeHandle(ref, () => ({
@@ -217,13 +238,18 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
         (rect as { data?: unknown }).data = { isAnnotation: true, annotationId: annotation.id };
 
         rect.on('modified', () => {
+          const srcImg = useAnnotationStore.getState().image;
+          const imgW = srcImg?.width ?? Infinity;
+          const imgH = srcImg?.height ?? Infinity;
           const sceneTopLeft = { x: rect.left || 0, y: rect.top || 0 };
-          const img = sceneToImage(sceneTopLeft, placement);
+          const tl = clampImageCoords(sceneToImage(sceneTopLeft, placement), imgW, imgH);
+          const rawW = ((rect.width || 0) * (rect.scaleX || 1)) / placement.scale;
+          const rawH = ((rect.height || 0) * (rect.scaleY || 1)) / placement.scale;
           updateAnnotation<BoundingBoxType>(annotation.id, {
-            x: img.x,
-            y: img.y,
-            width: ((rect.width || 0) * (rect.scaleX || 1)) / placement.scale,
-            height: ((rect.height || 0) * (rect.scaleY || 1)) / placement.scale,
+            x: tl.x,
+            y: tl.y,
+            width: Math.min(rawW, imgW - tl.x),
+            height: Math.min(rawH, imgH - tl.y),
           });
           rect.set({ scaleX: 1, scaleY: 1 });
         });
@@ -248,6 +274,9 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
 
         polygon.on('modified', () => {
           if (!polygon.points) return;
+          const srcImg = useAnnotationStore.getState().image;
+          const imgW = srcImg?.width ?? Infinity;
+          const imgH = srcImg?.height ?? Infinity;
           // Fabric stores polygon points relative to the object's own origin, so
           // reconstruct absolute scene coordinates via the object's transform.
           const matrix = polygon.calcTransformMatrix();
@@ -256,7 +285,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
               pt.x - polygon.pathOffset.x,
               pt.y - polygon.pathOffset.y
             ).transform(matrix);
-            return sceneToImage({ x: scenePoint.x, y: scenePoint.y }, placement);
+            return clampImageCoords(sceneToImage({ x: scenePoint.x, y: scenePoint.y }, placement), imgW, imgH);
           });
           updateAnnotation<PolygonType>(annotation.id, { points: imagePoints });
         });
@@ -366,6 +395,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
 
     addAnnotation(newPolygon);
     cancelPolygon();
+    onAnnotationAddedRef.current?.(newPolygon.id);
   }, [addAnnotation, cancelPolygon]);
 
   // Mouse down - start drawing bbox, add polygon point, or start panning
@@ -386,12 +416,15 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
       }
 
       if (selectedTool === 'bbox' && !isDrawing) {
-        startPointRef.current = { x: pointer.x, y: pointer.y };
+        const pl = imagePlacementRef.current;
+        const img = useAnnotationStore.getState().image;
+        const cp = pl && img ? clampToImage(pointer, pl, img.width, img.height) : pointer;
+        startPointRef.current = { x: cp.x, y: cp.y };
         setIsDrawing(true);
 
         const rect = new Rect({
-          left: pointer.x,
-          top: pointer.y,
+          left: cp.x,
+          top: cp.y,
           width: 0,
           height: 0,
           fill: 'transparent',
@@ -404,10 +437,13 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
         canvas.add(rect);
         setDrawingRect(rect);
       } else if (selectedTool === 'polygon') {
+        const pl = imagePlacementRef.current;
+        const img = useAnnotationStore.getState().image;
+        const cp = pl && img ? clampToImage(pointer, pl, img.width, img.height) : pointer;
         if (!polygonDrawing.isDrawing) {
-          startPolygon({ x: pointer.x, y: pointer.y });
+          startPolygon(cp);
         } else {
-          addPolygonPoint({ x: pointer.x, y: pointer.y });
+          addPolygonPoint(cp);
         }
       }
     },
@@ -437,14 +473,20 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
       const pointer = canvas.getScenePoint(opt.e);
 
       if (isDrawing && drawingRect && startPointRef.current) {
-        const x = Math.min(startPointRef.current.x, pointer.x);
-        const y = Math.min(startPointRef.current.y, pointer.y);
-        const width = Math.abs(pointer.x - startPointRef.current.x);
-        const height = Math.abs(pointer.y - startPointRef.current.y);
+        const pl = imagePlacementRef.current;
+        const img = useAnnotationStore.getState().image;
+        const cp = pl && img ? clampToImage(pointer, pl, img.width, img.height) : pointer;
+        const x = Math.min(startPointRef.current.x, cp.x);
+        const y = Math.min(startPointRef.current.y, cp.y);
+        const width = Math.abs(cp.x - startPointRef.current.x);
+        const height = Math.abs(cp.y - startPointRef.current.y);
         drawingRect.set({ left: x, top: y, width, height });
         canvas.requestRenderAll();
       } else if (polygonDrawing.isDrawing && selectedTool === 'polygon') {
-        updatePolygonPreview({ x: pointer.x, y: pointer.y });
+        const pl = imagePlacementRef.current;
+        const img = useAnnotationStore.getState().image;
+        const cp = pl && img ? clampToImage(pointer, pl, img.width, img.height) : pointer;
+        updatePolygonPreview(cp);
       }
     },
     [isDrawing, drawingRect, polygonDrawing.isDrawing, selectedTool, updatePolygonPreview, isPanning]
@@ -470,19 +512,27 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle>((_props, ref)
     const placement = imagePlacementRef.current;
     // Only create an annotation if it has a meaningful size (in screen pixels)
     if (placement && sceneWidth > 5 && sceneHeight > 5) {
+      const img = useAnnotationStore.getState().image;
+      const imgW = img?.width ?? Infinity;
+      const imgH = img?.height ?? Infinity;
       const topLeft = sceneToImage({ x: drawingRect.left || 0, y: drawingRect.top || 0 }, placement);
+      const x = Math.max(0, Math.min(topLeft.x, imgW));
+      const y = Math.max(0, Math.min(topLeft.y, imgH));
+      const w = Math.min(sceneWidth / placement.scale, imgW - x);
+      const h = Math.min(sceneHeight / placement.scale, imgH - y);
       const newAnnotation: BoundingBoxType = {
         id: uuidv4(),
         type: 'bbox',
         classId: getEffectiveClassId(),
-        x: topLeft.x,
-        y: topLeft.y,
-        width: sceneWidth / placement.scale,
-        height: sceneHeight / placement.scale,
+        x,
+        y,
+        width: w,
+        height: h,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       addAnnotation(newAnnotation);
+      onAnnotationAddedRef.current?.(newAnnotation.id);
     }
 
     setIsDrawing(false);

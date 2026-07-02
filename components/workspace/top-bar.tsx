@@ -2,21 +2,40 @@
 
 import { useAnnotationStore } from '@/lib/store/annotation-store';
 import { useTheme } from '@/components/theme-provider';
+import { useUser } from '@clerk/nextjs';
 
 export function TopBar({
   onExport,
   onHelp,
   onNewImage,
+  saveState = 'idle',
+  currentIndex = 0,
+  totalImages = 1,
+  onPrev,
+  onNext,
+  projectId,
+  imageStatus = 'unlabeled',
+  onMarkDone,
 }: {
   onExport: () => void;
   onHelp: () => void;
   onNewImage: () => void;
+  saveState?: 'idle' | 'saving' | 'saved';
+  currentIndex?: number;
+  totalImages?: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+  projectId?: string | null;
+  imageStatus?: 'unlabeled' | 'in_progress' | 'labeled';
+  onMarkDone?: () => void;
 }) {
   const image = useAnnotationStore((s) => s.image);
   const zoomState = useAnnotationStore((s) => s.zoomState);
   const setZoomState = useAnnotationStore((s) => s.setZoomState);
   const resetZoom = useAnnotationStore((s) => s.resetZoom);
   const { resolved, setMode } = useTheme();
+  const { user } = useUser();
+  const initials = (user?.fullName || user?.firstName || 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
   const zoomPct = Math.round(zoomState.scale * 100);
   const zoomIn = () => setZoomState({ scale: Math.min(zoomState.scale * 1.2, 5) });
@@ -33,6 +52,7 @@ export function TopBar({
         </svg>
         <div className="crumb">
           <a href="/dashboard">Projects</a>
+          {projectId && <><span className="sep">›</span><a href={`/dataset/${projectId}`}>Dataset</a></>}
           <span className="sep">›</span>
           <b>{image?.name ?? 'Untitled'}</b>
         </div>
@@ -40,15 +60,33 @@ export function TopBar({
 
       <div className="top-c">
         <div className="imgswitch">
-          <button className="icon-btn sm" aria-label="Previous image" disabled>
+          <button className="icon-btn sm" aria-label="Previous image" disabled={!onPrev || currentIndex === 0} onClick={onPrev}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
-          <span className="idx">1 / 1</span>
-          <button className="icon-btn sm" aria-label="Next image" disabled>
+          <span className="idx">{currentIndex + 1} / {totalImages}</span>
+          <button className="icon-btn sm" aria-label="Next image" disabled={!onNext || currentIndex === totalImages - 1} onClick={onNext}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
         </div>
-        <span className="savechip"><span className="pip" />Saved</span>
+        {saveState === 'saving' && <span className="savechip"><span className="pip" style={{ background: 'var(--warning)' }} />Saving…</span>}
+        {saveState === 'saved' && <span className="savechip"><span className="pip" />Saved</span>}
+        <button
+          onClick={onMarkDone}
+          title={imageStatus === 'labeled' ? 'Mark as in-progress' : 'Mark as labeled / done'}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 'var(--radius-full)',
+            border: `1.5px solid ${imageStatus === 'labeled' ? 'var(--success)' : 'var(--outline)'}`,
+            background: imageStatus === 'labeled' ? 'var(--success-subtle, #dcfce7)' : 'transparent',
+            color: imageStatus === 'labeled' ? 'var(--success)' : 'var(--muted-foreground)',
+            cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.12s',
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12l4 4 10-10" />
+          </svg>
+          {imageStatus === 'labeled' ? 'Labeled' : 'Mark done'}
+        </button>
       </div>
 
       <div className="top-r">
@@ -79,7 +117,10 @@ export function TopBar({
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
           )}
         </button>
-        <span className="avatar sm" style={{ background: 'var(--blue-500)', color: '#fff', marginLeft: 4 }}>BJ</span>
+        {user?.imageUrl
+          ? <img src={user.imageUrl} alt={initials} className="avatar sm" style={{ objectFit: 'cover', marginLeft: 4 }} />
+          : <span className="avatar sm" style={{ background: 'var(--blue-500)', color: '#fff', marginLeft: 4 }}>{initials}</span>
+        }
       </div>
     </header>
   );
