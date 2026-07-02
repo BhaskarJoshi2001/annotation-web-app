@@ -3,7 +3,16 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useClerk, useUser } from '@clerk/nextjs';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from './theme-provider';
+import { FREE_MAX_IMAGES, FREE_MAX_STORAGE_BYTES } from '@/lib/limits';
+
+interface UsageData {
+  imageCount: number;
+  storageBytes: number;
+  imageLimit: number;
+  storageLimit: number;
+}
 
 type NavKey = 'projects' | 'datasets' | 'models' | 'exports' | 'team' | 'settings';
 
@@ -69,15 +78,9 @@ function getUsageState(used: number, limit: number): UsageState {
 export function AppSidebar({
   active,
   showUsage = false,
-  dataUsed = 22600,
-  dataLimit = 25000,
-  daysLeft = 8,
 }: {
   active: NavKey;
   showUsage?: boolean;
-  dataUsed?: number;
-  dataLimit?: number;
-  daysLeft?: number;
 }) {
   const { mode, setMode } = useTheme();
   const { signOut } = useClerk();
@@ -94,6 +97,22 @@ export function AppSidebar({
   const nextId = useRef(0);
   const profileRef = useRef<HTMLDivElement>(null);
   const userboxRef = useRef<HTMLButtonElement>(null);
+
+  const { data: usage } = useQuery<UsageData>({
+    queryKey: ['usage'],
+    queryFn: async () => {
+      const res = await fetch('/api/usage');
+      if (!res.ok) throw new Error('Failed to fetch usage');
+      return res.json();
+    },
+    enabled: showUsage,
+    staleTime: 30_000,
+  });
+
+  const dataUsed = usage?.imageCount ?? 0;
+  const dataLimit = usage?.imageLimit ?? FREE_MAX_IMAGES;
+  const storageMB = Math.round((usage?.storageBytes ?? 0) / (1024 * 1024));
+  const storageLimitMB = Math.round((usage?.storageLimit ?? FREE_MAX_STORAGE_BYTES) / (1024 * 1024));
 
   const uState = getUsageState(dataUsed, dataLimit);
   const pct = Math.min(100, Math.round((dataUsed / dataLimit) * 100));
@@ -181,7 +200,7 @@ export function AppSidebar({
 
       <div className="sidebar-foot">
         {showUsage && (
-          <div className={`usage${usageCls}`}>
+          <div className={`usage${usageCls}`} title={`${storageMB} MB / ${storageLimitMB} MB storage used`}>
             <div className="urow">
               <span className="t-caption usage-label">
                 {(uState === 'warn' || uState === 'limit') && (
@@ -194,8 +213,8 @@ export function AppSidebar({
                 {uState === 'limit'
                   ? ' · Limit reached'
                   : uState === 'warn'
-                  ? ` · ${daysLeft}d left`
-                  : ' · Images this month'}
+                  ? ' · Near limit'
+                  : ' · Images stored'}
               </span>
             </div>
             <div className="progress"><div className="bar" style={{ width: `${pct}%` }} /></div>

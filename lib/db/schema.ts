@@ -36,6 +36,7 @@ export const images = pgTable('images', {
   r2Key: text('r2_key').notNull(),
   width: integer('width'),
   height: integer('height'),
+  sizeBytes: integer('size_bytes'), // verified via HeadObject at upload confirm; null on legacy rows
   status: text('status').notNull().default('unlabeled'), // 'unlabeled' | 'in_progress' | 'labeled'
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

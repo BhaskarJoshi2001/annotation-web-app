@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { eq, count, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import { db } from '@/lib/db';
+import { images, projects } from '@/lib/db/schema';
 import { presignPutUrl } from '@/lib/r2';
 import { requireOwnedProject } from '@/lib/api/guards';
+import { FREE_MAX_IMAGES, FREE_MAX_STORAGE_BYTES } from '@/lib/limits';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -31,6 +35,30 @@ export async function POST(
     return NextResponse.json(
       { error: 'Invalid file — JPG, PNG or WebP up to 50MB' },
       { status: 400 }
+    );
+  }
+
+  // Quota check — soft limit: parallel presigns can race past it slightly,
+  // bounded by upload concurrency. Fine for storage, unlike e.g. payments.
+  const [usage] = await db
+    .select({
+      imageCount: count(),
+      storageBytes: sql<number>`coalesce(sum(${images.sizeBytes}), 0)`,
+    })
+    .from(images)
+    .innerJoin(projects, eq(images.projectId, projects.id))
+    .where(eq(projects.ownerId, guard.user.id));
+
+  if ((usage?.imageCount ?? 0) >= FREE_MAX_IMAGES) {
+    return NextResponse.json(
+      { error: `Image limit reached (${FREE_MAX_IMAGES.toLocaleString()} images on the free plan)` },
+      { status: 403 }
+    );
+  }
+  if (Number(usage?.storageBytes ?? 0) + parsed.data.size > FREE_MAX_STORAGE_BYTES) {
+    return NextResponse.json(
+      { error: 'Storage limit reached (1 GB on the free plan)' },
+      { status: 403 }
     );
   }
 

@@ -98,6 +98,7 @@ export async function POST(
       r2Key: key,
       width: width ?? null,
       height: height ?? null,
+      sizeBytes: obj.ContentLength ?? null,
       status: 'unlabeled',
     })
     .onConflictDoNothing()

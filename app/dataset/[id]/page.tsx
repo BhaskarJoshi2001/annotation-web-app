@@ -136,6 +136,7 @@ export default function DatasetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['images', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['usage'] });
       setUploadDone(d => {
         const next = d + 1;
         if (next >= uploadTotalRef.current) {
@@ -158,6 +159,7 @@ export default function DatasetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['images', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['usage'] });
     },
     onError: (err: Error) => addToast('Delete failed', err.message),
   });
@@ -185,6 +187,7 @@ export default function DatasetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['images', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['usage'] });
       setSelected(new Set());
       addToast('Deleted', `${selected.size} image${selected.size === 1 ? '' : 's'} removed.`);
     },
