@@ -65,6 +65,14 @@ export default function WorkspacePage() {
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialLoad = useRef(true);
 
+  const [aiError, setAiError] = useState<string | null>(null);
+  const aiErrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleAiError = useCallback((msg: string) => {
+    setAiError(msg);
+    if (aiErrTimer.current) clearTimeout(aiErrTimer.current);
+    aiErrTimer.current = setTimeout(() => setAiError(null), 4000);
+  }, []);
+
   // Load image + label classes + annotations from DB
   useEffect(() => {
     async function load() {
@@ -177,6 +185,7 @@ export default function WorkspacePage() {
       if (k === 's') { e.preventDefault(); setSelectedTool('select'); }
       else if (k === 'b') { e.preventDefault(); setSelectedTool('bbox'); }
       else if (k === 'p') { e.preventDefault(); setSelectedTool('polygon'); }
+      else if (k === 'a') { e.preventDefault(); setSelectedTool('ai'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -219,7 +228,7 @@ export default function WorkspacePage() {
       <ToolRail />
       <main className="canvas-wrap">
         <div className="canvas-host">
-          <AnnotationCanvas ref={canvasRef} onAnnotationAdded={handleAnnotationAdded} />
+          <AnnotationCanvas ref={canvasRef} onAnnotationAdded={handleAnnotationAdded} onAiError={handleAiError} />
         </div>
         <div className="canvas-float cf-tr">
           <div className="float-card">
@@ -230,6 +239,19 @@ export default function WorkspacePage() {
         </div>
       </main>
       <Inspector activeTab={inspectorTab} onTabChange={setInspectorTab} />
+      {aiError && (
+        <div className="ds-toast-host">
+          <div className="ds-toast show">
+            <span style={{ color: 'var(--destructive)', flex: 'none', width: 18, height: 18, marginTop: 1 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" /></svg>
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 'var(--text-label-size)', fontWeight: 600, marginBottom: 2 }}>AI select failed</div>
+              <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--muted-foreground)' }}>{aiError}</div>
+            </div>
+          </div>
+        </div>
+      )}
       <StatusBar onHelp={() => setShortcutsOpen(true)} />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} getCanvas={() => canvasRef.current?.getCanvas() ?? null} />

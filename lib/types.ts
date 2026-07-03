@@ -49,7 +49,7 @@ export interface ProjectState {
   annotations: Annotation[];
 }
 
-export type ToolType = 'select' | 'bbox' | 'polygon';
+export type ToolType = 'select' | 'bbox' | 'polygon' | 'ai';
 
 export interface ZoomState {
   scale: number;

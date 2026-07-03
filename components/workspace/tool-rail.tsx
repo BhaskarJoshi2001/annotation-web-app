@@ -24,6 +24,10 @@ const TOOLS: Tool[] = [
     type: 'polygon', label: 'Polygon', shortcut: 'P',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M12 3l8 5.5-3 10.5H7L4 8.5z" /><circle cx="12" cy="3" r="1.6" fill="currentColor" /><circle cx="20" cy="8.5" r="1.6" fill="currentColor" /><circle cx="4" cy="8.5" r="1.6" fill="currentColor" /></svg>,
   },
+  {
+    type: 'ai', label: 'AI select — click an object', shortcut: 'A',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" /><path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></svg>,
+  },
 ];
 
 export function ToolRail() {
@@ -88,12 +92,6 @@ export function ToolRail() {
         </>
       )}
 
-      <div className="rail-foot">
-        <button className="tool" aria-label="Auto-label (coming soon)" disabled title="Auto-label — coming soon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" /><path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></svg>
-          <span className="tt">Auto-label (AI)<kbd>soon</kbd></span>
-        </button>
-      </div>
     </nav>
   );
 }

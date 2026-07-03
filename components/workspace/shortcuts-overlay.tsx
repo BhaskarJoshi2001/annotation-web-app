@@ -7,6 +7,7 @@ const SECTIONS: { title: string; items: [string, string[]][] }[] = [
       ['Select & move', ['S']],
       ['Bounding box', ['B']],
       ['Polygon', ['P']],
+      ['AI select (SAM)', ['A']],
     ],
   },
   {

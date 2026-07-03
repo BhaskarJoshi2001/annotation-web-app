@@ -55,9 +55,10 @@ function clampImageCoords(p: PointType, imgW: number, imgH: number): PointType {
 
 interface AnnotationCanvasProps {
   onAnnotationAdded?: (id: string) => void;
+  onAiError?: (message: string) => void;
 }
 
-export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCanvasProps>(({ onAnnotationAdded }, ref) => {
+export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCanvasProps>(({ onAnnotationAdded, onAiError }, ref) => {
   const image = useAnnotationStore((state) => state.image);
   const annotations = useAnnotationStore((state) => state.annotations);
   const labelClasses = useAnnotationStore((state) => state.labelClasses);
@@ -99,6 +100,13 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
 
   const onAnnotationAddedRef = useRef(onAnnotationAdded);
   useEffect(() => { onAnnotationAddedRef.current = onAnnotationAdded; }, [onAnnotationAdded]);
+  const onAiErrorRef = useRef(onAiError);
+  useEffect(() => { onAiErrorRef.current = onAiError; }, [onAiError]);
+
+  // AI segmentation pending state — scene point of the click, for the
+  // pulse indicator. Ref mirrors it so event handlers see the current value.
+  const [aiPending, setAiPending] = useState<PointType | null>(null);
+  const aiPendingRef = useRef(false);
 
   // Expose canvas ref to parent
   useImperativeHandle(ref, () => ({
@@ -365,6 +373,7 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     if (!canvas) return;
 
     canvas.selection = selectedTool === 'select';
+    canvas.defaultCursor = selectedTool === 'ai' ? 'crosshair' : 'default';
     canvas.forEachObject((obj) => {
       if ((obj as { data?: { isAnnotation?: boolean } }).data?.isAnnotation) {
         obj.selectable = selectedTool === 'select';
@@ -397,6 +406,42 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     cancelPolygon();
     onAnnotationAddedRef.current?.(newPolygon.id);
   }, [addAnnotation, cancelPolygon]);
+
+  // Click-to-segment: one request in flight at a time; the returned polygon
+  // enters the store exactly like a hand-drawn one (undo/redo + auto-save free)
+  const runAiSegment = useCallback(async (imagePoint: PointType, scenePoint: PointType) => {
+    const img = useAnnotationStore.getState().image;
+    if (!img || aiPendingRef.current) return;
+    aiPendingRef.current = true;
+    setAiPending(scenePoint);
+    try {
+      const res = await fetch(`/api/images/${img.id}/segment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ point: imagePoint }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error((err as { error?: string })?.error ?? 'Segmentation failed');
+      }
+      const { points } = await res.json() as { points: PointType[] };
+      const newPolygon: PolygonType = {
+        id: uuidv4(),
+        type: 'polygon',
+        classId: useAnnotationStore.getState().getEffectiveClassId(),
+        points,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      addAnnotation(newPolygon);
+      onAnnotationAddedRef.current?.(newPolygon.id);
+    } catch (e) {
+      onAiErrorRef.current?.((e as Error).message);
+    } finally {
+      aiPendingRef.current = false;
+      setAiPending(null);
+    }
+  }, [addAnnotation]);
 
   // Mouse down - start drawing bbox, add polygon point, or start panning
   const handleMouseDown = useCallback(
@@ -445,9 +490,16 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
         } else {
           addPolygonPoint(cp);
         }
+      } else if (selectedTool === 'ai') {
+        const pl = imagePlacementRef.current;
+        const img = useAnnotationStore.getState().image;
+        if (!pl || !img) return;
+        const cp = clampToImage(pointer, pl, img.width, img.height);
+        const imagePoint = clampImageCoords(sceneToImage(cp, pl), img.width, img.height);
+        runAiSegment(imagePoint, cp);
       }
     },
-    [selectedTool, isDrawing, polygonDrawing.isDrawing, startPolygon, addPolygonPoint, isSpacePressed]
+    [selectedTool, isDrawing, polygonDrawing.isDrawing, startPolygon, addPolygonPoint, isSpacePressed, runAiSegment]
   );
 
   // Mouse move - update drawing bbox, polygon preview, or pan
@@ -622,9 +674,21 @@ export const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, AnnotationCan
     );
   }
 
+  // Scene → DOM for the pending indicator (viewport transform is scale+translate)
+  const vpt = fabricCanvasRef.current?.viewportTransform;
+  const pendingDom = aiPending
+    ? {
+        x: vpt ? aiPending.x * vpt[0] + vpt[4] : aiPending.x,
+        y: vpt ? aiPending.y * vpt[3] + vpt[5] : aiPending.y,
+      }
+    : null;
+
   return (
     <div ref={containerRef} className="w-full h-full relative">
       <canvas ref={canvasRef} style={{ display: 'block' }} />
+      {pendingDom && (
+        <div className="ai-pending" style={{ left: pendingDom.x, top: pendingDom.y }} aria-label="Segmenting…" />
+      )}
     </div>
   );
 });

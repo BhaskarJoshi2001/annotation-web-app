@@ -6,6 +6,9 @@ export const users = pgTable('users', {
   name: text('name').notNull(),
   email: text('email').notNull(),
   avatarUrl: text('avatar_url'),
+  // Daily SAM-call metering: date is 'YYYY-MM-DD'; count resets when date changes
+  samCallsToday: integer('sam_calls_today').notNull().default(0),
+  samCallsDate: text('sam_calls_date'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

@@ -7,6 +7,7 @@ const TOOL_NAMES: Record<ToolType, string> = {
   select: 'Select',
   bbox: 'Bounding box',
   polygon: 'Polygon',
+  ai: 'AI select',
 };
 
 export function StatusBar({ onHelp }: { onHelp: () => void }) {
