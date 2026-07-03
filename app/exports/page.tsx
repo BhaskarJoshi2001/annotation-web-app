@@ -1,37 +1,55 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppSidebar } from '@/components/app-sidebar';
 import { useTheme } from '@/components/theme-provider';
 import '../ds.css';
 import '../app-shell.css';
 import './exports.css';
 
-interface Export {
-  id: number;
-  fmt: string;
-  name: string;
-  proj: string;
-  imgs: string;
-  anns: string;
-  size: string;
-  ago: string;
+interface DbExport {
+  id: string;
+  projectId: string;
+  projectName: string;
+  format: 'coco' | 'yolo' | 'json' | 'csv';
+  imageCount: number;
+  annotationCount: number;
+  sizeBytes: number;
+  status: string;
+  createdAt: string;
 }
 
-const INITIAL_EXPORTS: Export[] = [
-  { id: 1, fmt: 'COCO', name: 'COCO JSON', proj: 'Traffic — Q3 dashcam', imgs: '2,032', anns: '12,840', size: '4.2 MB', ago: '2h ago' },
-  { id: 2, fmt: 'YOLO', name: 'YOLO v8', proj: 'Warehouse pallets', imgs: '1,180', anns: '8,204', size: '2.8 MB', ago: 'yesterday' },
-  { id: 3, fmt: 'COCO', name: 'COCO JSON', proj: 'Retail shelf audit', imgs: '3,804', anns: '51,240', size: '18.1 MB', ago: '3d ago' },
-];
+const FORMAT_LABELS: Record<DbExport['format'], string> = {
+  coco: 'COCO JSON',
+  yolo: 'YOLO v8',
+  json: 'Custom JSON',
+  csv: 'CSV manifest',
+};
+
+function fmtSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+function timeAgo(iso: string): string {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 172800) return 'yesterday';
+  return `${Math.floor(s / 86400)}d ago`;
+}
 
 interface Toast { id: number; title: string; msg: string; accent: string; }
 
 export default function ExportsPage() {
   const { resolved, setMode } = useTheme();
   const isDark = resolved === 'dark';
-  const [exports, setExports] = useState<Export[]>(INITIAL_EXPORTS);
-  const [removing, setRemoving] = useState<number | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number; id: number } | null>(null);
+  const queryClient = useQueryClient();
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
@@ -42,22 +60,59 @@ export default function ExportsPage() {
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3400);
   }, []);
 
-  function handleDownload(id: number) {
-    const e = exports.find(x => x.id === id);
-    if (e) addToast('Download started', `${e.name} · ${e.size}`);
-  }
+  const { data: exportList = [], isLoading } = useQuery<DbExport[]>({
+    queryKey: ['exports'],
+    queryFn: async () => {
+      const res = await fetch('/api/exports');
+      if (!res.ok) throw new Error('Failed to fetch exports');
+      return res.json();
+    },
+  });
 
-  function handleDelete(id: number) {
-    const e = exports.find(x => x.id === id);
-    setRemoving(id);
-    setTimeout(() => {
-      setExports(p => p.filter(x => x.id !== id));
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/exports/${id}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) throw new Error('Delete failed');
+    },
+    onSuccess: (_d, id) => {
+      const e = exportList.find(x => x.id === id);
+      queryClient.invalidateQueries({ queryKey: ['exports'] });
       setRemoving(null);
-      if (e) addToast('Export deleted', `Removed ${e.name} for ${e.proj}.`);
-    }, 200);
+      if (e) addToast('Export deleted', `Removed ${FORMAT_LABELS[e.format]} for ${e.projectName}.`);
+    },
+    onError: (err: Error) => { setRemoving(null); addToast('Delete failed', err.message, 'var(--destructive)'); },
+  });
+
+  // Re-runs the export against current data and downloads the fresh file
+  async function handleDownload(id: string) {
+    const e = exportList.find(x => x.id === id);
+    if (!e) return;
+    try {
+      const res = await fetch(`/api/projects/${e.projectId}/export?format=${e.format}&includeEmpty=false`);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const cd = res.headers.get('Content-Disposition');
+      link.download = cd?.match(/filename="([^"]+)"/)?.[1] ?? 'export';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      addToast('Download started', `${FORMAT_LABELS[e.format]} · ${e.projectName}`);
+      queryClient.invalidateQueries({ queryKey: ['exports'] });
+    } catch {
+      addToast('Download failed', 'Could not regenerate this export.', 'var(--destructive)');
+    }
   }
 
-  function openMenu(ev: React.MouseEvent, id: number) {
+  function handleDelete(id: string) {
+    setRemoving(id);
+    setTimeout(() => deleteMutation.mutate(id), 200);
+  }
+
+  function openMenu(ev: React.MouseEvent, id: string) {
     ev.stopPropagation();
     const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
     setMenu({ x: rect.right - 180, y: rect.bottom + 6, id });
@@ -88,14 +143,16 @@ export default function ExportsPage() {
               : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
             }
           </button>
-          <button className="btn btn-primary" onClick={() => addToast('New export', 'Choose a project to export from the projects page.')}>
+          <a className="btn btn-primary" href="/dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
             New export
-          </button>
+          </a>
         </header>
 
         <div className="content">
-          {exports.length === 0 ? (
+          {isLoading ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted-foreground)' }}>Loading exports…</div>
+          ) : exportList.length === 0 ? (
             <div className="empty">
               <div className="art">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
@@ -106,15 +163,15 @@ export default function ExportsPage() {
             </div>
           ) : (
             <div className="exp-list">
-              {exports.map(e => (
+              {exportList.map(e => (
                 <div key={e.id} className={`exp-row${removing === e.id ? ' removing' : ''}`}>
-                  <div className="fmt-badge">{e.fmt}</div>
+                  <div className="fmt-badge">{e.format.toUpperCase()}</div>
                   <div className="exp-meta">
                     <div className="l1">
-                      <b>{e.name}</b>
-                      <span className="proj">{e.proj}</span>
+                      <b>{FORMAT_LABELS[e.format]}</b>
+                      <span className="proj">{e.projectName}</span>
                     </div>
-                    <div className="l2">{e.imgs} images · {e.anns} annotations</div>
+                    <div className="l2">{e.imageCount.toLocaleString()} images · {e.annotationCount.toLocaleString()} annotations</div>
                   </div>
                   <div className="exp-right">
                     <span className="badge badge-success">
@@ -123,7 +180,7 @@ export default function ExportsPage() {
                       </svg>
                       Ready
                     </span>
-                    <span className="size">{e.size}<span className="ago">{e.ago}</span></span>
+                    <span className="size">{fmtSize(e.sizeBytes)}<span className="ago">{timeAgo(e.createdAt)}</span></span>
                     <button className="btn btn-outline btn-sm" onClick={() => handleDownload(e.id)}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
                       Download

@@ -163,14 +163,25 @@ export function AppSidebar({
     setUpgradeOpen(true);
   }
 
-  function doUpgrade() {
+  // Paid plans aren't live yet — interest lands on the waitlist and we
+  // notify when Pro launches
+  async function doUpgrade() {
     if (upgradeBusy) return;
     setUpgradeBusy(true);
-    setTimeout(() => {
-      setUpgradeBusy(false);
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: displayEmail, source: 'upgrade-modal' }),
+      });
+      if (!res.ok) throw new Error();
       setUpgradeOpen(false);
-      addToast('Upgraded to Pro', `${seats} seat${seats !== 1 ? 's' : ''} activated — $${seats * 25}/mo starting today.`);
-    }, 1400);
+      addToast('You’re on the list', 'Pro is launching soon — we’ll email you the moment it’s live.');
+    } catch {
+      addToast('Something went wrong', 'Could not join the waitlist — please try again.');
+    } finally {
+      setUpgradeBusy(false);
+    }
   }
 
   return (
@@ -327,23 +338,23 @@ export function AppSidebar({
               <div className="plan-card current">
                 <span className="plan-name">Free</span>
                 <div className="plan-price">$0<span className="freq">/mo</span></div>
-                <p className="plan-desc">25k images/mo · 3 projects · 1 seat</p>
+                <p className="plan-desc">1,000 images · 1 GB storage · 100 AI labels/day</p>
                 <button className="btn btn-outline btn-sm" disabled>Current plan</button>
               </div>
 
               {/* Pro — popular */}
               <div className="plan-card popular">
-                <span className="plan-badge">Popular</span>
+                <span className="plan-badge">Coming soon</span>
                 <span className="plan-name">Pro</span>
                 <div className="plan-price"><sup>$</sup>{seats * 25}<span className="freq">/mo</span></div>
-                <p className="plan-desc">Unlimited images · Unlimited projects · {seats} seat{seats !== 1 ? 's' : ''}</p>
+                <p className="plan-desc">Unlimited images · Unlimited AI labels · {seats} seat{seats !== 1 ? 's' : ''}</p>
                 <button
                   className="btn btn-primary btn-sm"
                   data-loading={upgradeBusy ? 'true' : undefined}
                   onClick={doUpgrade}
                 >
                   {upgradeBusy && <span className="spinner" />}
-                  <span className="btn-label">Upgrade</span>
+                  <span className="btn-label">Join waitlist</span>
                 </button>
               </div>
 

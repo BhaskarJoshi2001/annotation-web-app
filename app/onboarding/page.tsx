@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { useTheme } from '@/components/theme-provider';
 import '../ds.css';
 import './onboarding.css';
@@ -9,19 +10,6 @@ import './onboarding.css';
 const TOTAL = 4;
 
 const PALETTE = ['#f59e0b','#06b6d4','#ec4899','#10b981','#8b5cf6','#f97316','#3b6af5'];
-const GRADIENTS = [
-  'linear-gradient(135deg,#3b4a66,#1f2a40)',
-  'linear-gradient(135deg,#4a3b52,#2a1f33)',
-  'linear-gradient(135deg,#3b5246,#1f3329)',
-  'linear-gradient(135deg,#52473b,#332a1f)',
-  'linear-gradient(135deg,#3b4f52,#1f3033)',
-  'linear-gradient(135deg,#46395a,#241f33)',
-  'linear-gradient(135deg,#3b4a66,#222a3a)',
-  'linear-gradient(135deg,#4f3b3b,#331f1f)',
-  'linear-gradient(135deg,#3b5246,#1f3329)',
-  'linear-gradient(135deg,#3d4257,#23262e)',
-  'linear-gradient(135deg,#42506b,#262d3d)',
-];
 
 interface ClassEntry { name: string; color: string; }
 
@@ -68,9 +56,16 @@ function LogoMark() {
   );
 }
 
+const TASK_TYPE_MAP: Record<string, string> = {
+  bbox: 'detection',
+  poly: 'segmentation',
+  multi: 'detection',
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { mode, setMode } = useTheme();
+  const { user } = useUser();
 
   const [step, setStep] = useState(0);
   const [role, setRole] = useState('ml');
@@ -84,6 +79,14 @@ export default function OnboardingPage() {
   const [thumbs, setThumbs] = useState<string[]>([]);
   const [doneBadge, setDoneBadge] = useState(false);
 
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [obError, setObError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadedCount, setUploadedCount] = useState(0);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (step !== TOTAL - 1) { setDoneBadge(false); return; }
     const t = setTimeout(() => setDoneBadge(true), 100);
@@ -92,17 +95,98 @@ export default function OnboardingPage() {
 
   function go(n: number) { setStep(Math.max(0, Math.min(TOTAL - 1, n))); }
 
-  function handleNext() {
-    if (step === TOTAL - 1) { router.push('/dashboard'); return; }
+  // Create the project when leaving step 1 (uploads in step 2 need its id).
+  // Re-entry after Back only syncs the name.
+  async function ensureProject(): Promise<string | null> {
+    const name = projectName.trim() || 'Untitled project';
+    if (projectId) {
+      await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      }).catch(() => {});
+      return projectId;
+    }
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        taskType: TASK_TYPE_MAP[task] ?? 'detection',
+        classes: classes.map(c => c.name),
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      throw new Error((err as { error?: string })?.error ?? 'Could not create project');
+    }
+    const project = await res.json() as { id: string };
+    setProjectId(project.id);
+    return project.id;
+  }
+
+  async function handleNext() {
+    setObError('');
+    if (step === TOTAL - 1) {
+      router.push(projectId ? `/dataset/${projectId}` : '/dashboard');
+      return;
+    }
+    if (step === 1) {
+      setBusy(true);
+      try {
+        await ensureProject();
+        go(2);
+      } catch (e) {
+        setObError((e as Error).message);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     go(step + 1);
   }
 
-  function simulateUpload() {
-    if (uploaded) return;
-    setUploaded(true);
-    GRADIENTS.slice(0, 11).forEach((g, i) => {
-      setTimeout(() => setThumbs(prev => [...prev, g]), i * 70);
-    });
+  async function uploadFiles(files: FileList | null) {
+    if (!files || !projectId || uploading) return;
+    const valid = Array.from(files).filter(f => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type));
+    if (!valid.length) return;
+    setUploading(true);
+    setObError('');
+    let failed = 0;
+    for (const file of valid) {
+      try {
+        const dims = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(url); };
+          img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Unreadable image')); };
+          img.src = url;
+        });
+        const pres = await fetch(`/api/projects/${projectId}/images/presign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+        });
+        if (!pres.ok) throw new Error('presign');
+        const { uploadUrl, key } = await pres.json() as { uploadUrl: string; key: string };
+        const put = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+        if (!put.ok) throw new Error('upload');
+        const conf = await fetch(`/api/projects/${projectId}/images`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, filename: file.name, width: dims.width, height: dims.height }),
+        });
+        if (!conf.ok) throw new Error('confirm');
+        setThumbs(prev => [...prev, URL.createObjectURL(file)]);
+        setUploadedCount(c => c + 1);
+        setUploadedBytes(b => b + file.size);
+        setUploaded(true);
+      } catch {
+        failed++;
+      }
+    }
+    if (failed > 0) setObError(`${failed} file${failed === 1 ? '' : 's'} failed to upload.`);
+    setUploading(false);
   }
 
   function addClass() {
@@ -185,7 +269,7 @@ export default function OnboardingPage() {
             {step === 0 && (
               <section>
                 <div className="panel-head">
-                  <div className="eyebrow">Welcome, Jordan</div>
+                  <div className="eyebrow">Welcome{user?.firstName ? `, ${user.firstName}` : ''}</div>
                   <h1>What brings you to Studio?</h1>
                   <p>This helps us tailor your defaults — tools, export formats, and review workflow. You can change everything later.</p>
                 </div>
@@ -269,31 +353,38 @@ export default function OnboardingPage() {
                   <h1>Add your first images</h1>
                   <p>Drop a batch to label. We support JPG, PNG, and WebP up to 50 MB each — or connect a cloud bucket later.</p>
                 </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={e => uploadFiles(e.target.files)}
+                />
                 {!uploaded ? (
                   <div
                     className="dropzone"
-                    onClick={simulateUpload}
+                    onClick={() => !uploading && fileRef.current?.click()}
                     onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('drag'); }}
                     onDragLeave={e => e.currentTarget.classList.remove('drag')}
-                    onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('drag'); simulateUpload(); }}
+                    onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('drag'); uploadFiles(e.dataTransfer.files); }}
                   >
                     <div className="dz-ico">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                     </div>
-                    <h3>Drag &amp; drop images here</h3>
+                    <h3>{uploading ? 'Uploading…' : 'Drag & drop images here'}</h3>
                     <p>or <span className="dz-browse">browse your files</span></p>
                   </div>
                 ) : (
                   <>
                     <div className="thumbs">
-                      {thumbs.map((g, i) => (
-                        <div key={i} className="thumb" style={{background: g, animationDelay: `${i * 30}ms`}}>
+                      {thumbs.map((src, i) => (
+                        <div key={i} className="thumb" style={{backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center', animationDelay: `${i * 30}ms`}}>
                           <div className="ov">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
                           </div>
                         </div>
                       ))}
-                      {thumbs.length >= 11 && <div className="thumb more">+13</div>}
                     </div>
                     <div className="upload-summary">
                       <div className="us-left">
@@ -301,11 +392,11 @@ export default function OnboardingPage() {
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
                         </div>
                         <div className="us-text">
-                          <b>24 images uploaded</b>
-                          <span>Ready to label · 18.4 MB</span>
+                          <b>{uploading ? 'Uploading…' : `${uploadedCount} image${uploadedCount === 1 ? '' : 's'} uploaded`}</b>
+                          <span>Ready to label · {(uploadedBytes / (1024 * 1024)).toFixed(1)} MB</span>
                         </div>
                       </div>
-                      <button className="btn btn-ghost btn-sm">Add more</button>
+                      <button className="btn btn-ghost btn-sm" disabled={uploading} onClick={() => fileRef.current?.click()}>Add more</button>
                     </div>
                   </>
                 )}
@@ -321,11 +412,11 @@ export default function OnboardingPage() {
                   </div>
                   <h1 style={{margin:'0 0 var(--space-3)'}}>You&apos;re ready to label</h1>
                   <p className="t-body-lg muted" style={{margin:'0 auto',maxWidth:'46ch'}}>
-                    &ldquo;{projectName || 'Untitled project'}&rdquo; is set up with {uploaded ? 24 : 0} images and {classes.length} classes. Jump into the workspace and draw your first box.
+                    &ldquo;{projectName || 'Untitled project'}&rdquo; is set up with {uploadedCount} image{uploadedCount === 1 ? '' : 's'} and {classes.length} classes. Jump into the workspace and draw your first box.
                   </p>
                   <div className="recap">
                     <div className="rc"><div className="k">Project</div><div className="v sm">{projectName || 'Untitled project'}</div></div>
-                    <div className="rc"><div className="k">Images</div><div className="v">{uploaded ? '24' : '0'}</div></div>
+                    <div className="rc"><div className="k">Images</div><div className="v">{uploadedCount}</div></div>
                     <div className="rc"><div className="k">Classes</div><div className="v">{classes.length}</div></div>
                   </div>
                 </div>
@@ -342,8 +433,9 @@ export default function OnboardingPage() {
           <ol className="foot-dots" style={{listStyle:'none',margin:0,padding:0}}>
             {Array.from({length: TOTAL}).map((_, i) => <li key={i} className={`${i === step ? 'on' : ''}`}/>)}
           </ol>
-          <button className="btn btn-primary" onClick={handleNext}>
-            {nextLabel}
+          {obError && <span className="t-caption" style={{color:'var(--destructive)',marginRight:12}}>{obError}</span>}
+          <button className="btn btn-primary" onClick={handleNext} disabled={busy || uploading} data-loading={busy ? 'true' : undefined}>
+            {busy ? 'Creating…' : nextLabel}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>

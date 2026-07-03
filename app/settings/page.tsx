@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { useTheme } from '@/components/theme-provider';
 import { AppSidebar } from '@/components/app-sidebar';
 import '../ds.css';
@@ -49,8 +50,54 @@ function CheckIcon() {
 
 export default function SettingsPage() {
   const { mode, setMode } = useTheme();
+  const { user } = useUser();
+  const { openUserProfile } = useClerk();
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [accent, setAccent] = useState(ACCENTS[0]);
+
+  // Profile form — seeded from Clerk once loaded; title/bio live in unsafeMetadata
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [title, setTitle] = useState('');
+  const [bio, setBio] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!user) return;
+    setFirstName(user.firstName ?? '');
+    setLastName(user.lastName ?? '');
+    const meta = (user.unsafeMetadata ?? {}) as { title?: string; bio?: string };
+    setTitle(meta.title ?? '');
+    setBio(meta.bio ?? '');
+  }, [user]);
+
+  const initials = (`${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase())
+    || user?.emailAddresses[0]?.emailAddress?.[0]?.toUpperCase() || 'U';
+  const email = user?.primaryEmailAddress?.emailAddress ?? '';
+  const emailVerified = user?.primaryEmailAddress?.verification?.status === 'verified';
+
+  async function saveProfile() {
+    if (!user || savingProfile) return;
+    setSavingProfile(true);
+    try {
+      await user.update({ firstName, lastName, unsafeMetadata: { ...user.unsafeMetadata, title, bio } });
+      toast('Saved', 'Your profile has been updated.');
+    } catch {
+      toast('Save failed', 'Could not update your profile — try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function changeAvatar(file: File | null) {
+    if (!user || !file) return;
+    try {
+      await user.setProfileImage({ file });
+      toast('Photo updated', 'Your profile photo has been changed.');
+    } catch {
+      toast('Upload failed', 'Could not update your photo (max 10 MB).');
+    }
+  }
   const [teamRoles, setTeamRoles] = useState(TEAM.map(m => m.role));
   const [notifStates, setNotifStates] = useState(NOTIFS.map(n => n.on));
   const [compact, setCompact] = useState(false);
@@ -115,34 +162,37 @@ export default function SettingsPage() {
                 <div className="sec-h"><h3>Profile</h3><p>This information is visible to your team across the workspace.</p></div>
                 <div className="sec-b">
                   <div className="frow">
-                    <div className="lbl"><b>Photo</b><span>PNG or JPG, up to 2 MB.</span></div>
+                    <div className="lbl"><b>Photo</b><span>PNG or JPG, up to 10 MB.</span></div>
                     <div className="avatar-edit">
-                      <div className="avatar-big">AM</div>
+                      <input ref={avatarInputRef} type="file" accept="image/png,image/jpeg" style={{display:'none'}} onChange={e => changeAvatar(e.target.files?.[0] ?? null)} />
+                      {user?.imageUrl
+                        ? <img src={user.imageUrl} alt="Profile" className="avatar-big" style={{objectFit:'cover'}} />
+                        : <div className="avatar-big">{initials}</div>
+                      }
                       <div style={{display:'flex',gap:8}}>
-                        <button className="btn btn-outline btn-sm">Upload new</button>
-                        <button className="btn btn-ghost btn-sm">Remove</button>
+                        <button className="btn btn-outline btn-sm" onClick={() => avatarInputRef.current?.click()}>Upload new</button>
                       </div>
                     </div>
                   </div>
                   <div className="frow">
                     <div className="lbl"><b>Full name</b></div>
                     <div className="two-col">
-                      <input className="input" defaultValue="Ana"/>
-                      <input className="input" defaultValue="Marquez"/>
+                      <input className="input" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name"/>
+                      <input className="input" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last name"/>
                     </div>
                   </div>
                   <div className="frow">
                     <div className="lbl"><b>Role / title</b></div>
-                    <input className="input" defaultValue="ML Engineering Lead" style={{maxWidth:440}}/>
+                    <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. ML Engineer" style={{maxWidth:440}}/>
                   </div>
                   <div className="frow">
                     <div className="lbl"><b>Bio</b><span>A short description for your profile.</span></div>
-                    <textarea className="textarea" style={{maxWidth:440}} defaultValue="Building perception systems for autonomous logistics. Coffee, computer vision, and clean datasets."/>
+                    <textarea className="textarea" style={{maxWidth:440}} value={bio} onChange={e => setBio(e.target.value)} placeholder="A few words about you"/>
                   </div>
                 </div>
                 <div className="sec-f">
-                  <button className="btn btn-ghost">Cancel</button>
-                  <button className="btn btn-primary" onClick={() => toast('Saved','Your changes have been saved.')}>Save changes</button>
+                  <button className="btn btn-ghost" onClick={() => { if (user) { setFirstName(user.firstName ?? ''); setLastName(user.lastName ?? ''); } }}>Cancel</button>
+                  <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile}>{savingProfile ? 'Saving…' : 'Save changes'}</button>
                 </div>
               </div>
             </div>
@@ -156,13 +206,13 @@ export default function SettingsPage() {
                     <div className="lbl"><b>Email address</b><span>Used for sign-in and notifications.</span></div>
                     <div className="input-group" style={{maxWidth:440}}>
                       <svg className="lead-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6" strokeLinecap="round"/></svg>
-                      <input className="input" defaultValue="ana@acmevision.ai"/>
-                      <span className="badge badge-success trail" style={{marginRight:6}}>Verified</span>
+                      <input className="input" value={email} readOnly/>
+                      {emailVerified && <span className="badge badge-success trail" style={{marginRight:6}}>Verified</span>}
                     </div>
                   </div>
                   <div className="frow">
-                    <div className="lbl"><b>Password</b><span>Last changed 3 months ago.</span></div>
-                    <button className="btn btn-outline" style={{width:'fit-content'}} onClick={() => toast('Email sent','A password reset link has been sent to your email.')}>Change password</button>
+                    <div className="lbl"><b>Password &amp; security</b><span>Managed through your secure account portal.</span></div>
+                    <button className="btn btn-outline" style={{width:'fit-content'}} onClick={() => openUserProfile()}>Manage account</button>
                   </div>
                   <div className="frow">
                     <div className="lbl"><b>Two-factor auth</b><span>Add an extra layer of security.</span></div>

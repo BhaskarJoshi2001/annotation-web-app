@@ -17,9 +17,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Annotation Studio',
+  title: {
+    default: 'Annotation Studio — image labeling for computer vision',
+    template: '%s · Annotation Studio',
+  },
   description:
-    'Image annotation tool for computer-vision datasets — draw bounding boxes and polygons, then export to COCO, YOLO, or JSON.',
+    'Label computer-vision datasets fast: bounding boxes, polygons, and one-click AI segmentation powered by SAM. Export to COCO, YOLO, JSON, or CSV.',
+  keywords: [
+    'image annotation', 'data labeling', 'computer vision', 'SAM',
+    'segment anything', 'COCO export', 'YOLO export', 'bounding box', 'polygon annotation',
+  ],
+  openGraph: {
+    title: 'Annotation Studio — image labeling for computer vision',
+    description:
+      'Bounding boxes, polygons, and one-click AI segmentation powered by SAM. Export to COCO, YOLO, JSON, or CSV.',
+    type: 'website',
+    siteName: 'Annotation Studio',
+  },
 };
 
 // Runs before paint to apply the persisted theme (data-theme + .dark) with no flash.

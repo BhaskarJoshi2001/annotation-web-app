@@ -1,103 +1,75 @@
 # Annotation Studio
 
-An image-annotation tool for building computer-vision datasets. Draw bounding
-boxes and polygons over an image, manage them with labels and colors, and export
-in the formats ML pipelines actually use — **COCO**, **YOLO**, and JSON.
-
-> Status: in active development. This is Phase 1 (single-image annotation engine).
-> See [Roadmap](#roadmap) for what's next.
+A production-grade image annotation platform for building computer-vision
+datasets. Draw bounding boxes and polygons — or click an object and let
+**SAM (Segment Anything)** trace it for you — then export in the formats ML
+pipelines actually use: **COCO**, **YOLO**, **JSON**, and **CSV**.
 
 ## Features
 
-- **Bounding-box and polygon tools** with live drawing preview
-- **Select, move, resize, and reshape** existing annotations
-- **Per-annotation labels and colors**, editable inline
-- **Zoom and pan** (mouse wheel buttons + hold `Space` to drag)
-- **Undo / redo** with a 50-step history
-- **Keyboard-driven workflow** — `S`/`B`/`P` to switch tools, `Esc` to cancel,
-  `Enter` / double-click to close a polygon, `Delete` to remove
-- **Export to COCO, YOLO, JSON, and a rendered PNG**
-- **Local persistence** so your work survives a page reload
+- **Annotation workspace** — Fabric.js canvas with bounding boxes, polygons,
+  zoom/pan, undo/redo, per-class hotkeys, debounced auto-save
+- **AI select (SAM)** — click any object; a fal.ai-hosted SAM 2 model
+  segments it and the mask becomes an editable polygon (Moore-neighbor
+  boundary tracing + Ramer-Douglas-Peucker simplification, server-side)
+- **Dataset management** — drag-and-drop uploads straight from the browser
+  to Cloudflare R2 via presigned URLs, gallery with status filters, bulk ops
+- **Label classes** — defined per project with colors and hotkeys, managed
+  inline from the workspace
+- **Exports** — COCO / YOLO / JSON / CSV, streamed on demand, with history
+- **Auth & tenancy** — Clerk authentication; every API route is
+  ownership-checked; per-user storage quotas and daily AI-call caps
 
-## Tech stack
+## Stack
 
-- **Next.js 15** (App Router) + **React 18** + **TypeScript** (strict mode)
-- **Fabric.js 6** for the interactive canvas
-- **Zustand** for client state (with `persist` middleware)
-- **TanStack Query** for the upload mutation / async state
-- **Tailwind CSS** for styling
-- **Server Actions** for image upload handling
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 15 (App Router, Route Handlers) |
+| Auth | Clerk |
+| Database | Neon Postgres + Drizzle ORM |
+| Storage | Cloudflare R2 (S3-compatible, presigned direct uploads) |
+| AI inference | fal.ai (`fal-ai/sam2/image`) |
+| Validation | Zod on every mutation input |
+| Canvas | Fabric.js 6 |
+| State | Zustand (canvas) + TanStack Query (server state) |
 
-## How coordinates work
+## Architecture notes
 
-Annotations are stored in the **source image's pixel coordinate space**, not in
-screen/canvas coordinates. The canvas fits the image to the viewport with a
-`{ scale, offsetX, offsetY }` transform, and the app converts between "scene"
-(canvas) space and "image" space at the input and render boundaries.
-
-This is what keeps exports correct: a box drawn while zoomed to 250% still
-exports the right pixel coordinates, and COCO/YOLO normalization against the
-image's true dimensions stays accurate. Storing display coordinates instead
-would silently corrupt exports the moment the zoom level or canvas size changed.
+- **Uploads never touch the server.** The browser asks for a presigned PUT
+  URL, uploads directly to R2, then confirms; the server verifies the object
+  with `HeadObject` before creating the DB record. This sidesteps serverless
+  body-size limits and double bandwidth.
+- **Images are served by presigned GET URLs** minted at list time — zero
+  function invocations per image view.
+- **Annotation saves are atomic** — delete + insert + status update ship as
+  one `db.batch()`, which Neon executes in a single implicit transaction.
+- **Coordinates are stored in image-pixel space**, not canvas space — the
+  canvas converts through a `{ scale, offsetX, offsetY }` transform at the
+  input and render boundaries, so exports stay correct at any zoom.
+- **Every quota has one chokepoint**: storage limits are enforced at
+  presign, AI-call caps at the segment route, both fail-closed.
 
 ## Getting started
 
 ```bash
+git clone <repo>
+cd annotation-web-app
 npm install
+cp .env.example .env.local   # fill in Clerk, Neon, R2, fal.ai credentials
+npm run db:push              # create tables in Neon
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+You'll also need a CORS policy on the R2 bucket (GET + PUT from your app
+origin) — see [DEPLOYMENT.md](./DEPLOYMENT.md) for the exact JSON and the
+full production checklist.
 
-### Scripts
+## Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the dev server |
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server |
 | `npm run build` | Production build |
-| `npm start` | Run the production build |
-| `npm run lint` | ESLint |
-| `npm run type-check` | `tsc --noEmit` (strict) |
-
-## Usage
-
-1. **Upload an image** — drag & drop or click (JPG, PNG, WEBP; up to 10 MB).
-2. **Pick a tool** — Select (`S`), Bounding Box (`B`), or Polygon (`P`).
-3. **Draw** — drag for a box; click points and double-click / `Enter` to close a polygon.
-4. **Edit** — select an annotation to move/resize it; double-click its label to rename.
-5. **Export** — choose COCO, YOLO, JSON, or an annotated PNG.
-
-## Export formats
-
-- **COCO** — `images`, `annotations` (bbox + polygon `segmentation`), and `categories`.
-- **YOLO** — normalized `class x_center y_center width height` lines plus `classes.txt`.
-- **JSON** — the raw annotation model with image metadata.
-- **PNG** — the canvas rendered at 2× for a quick visual artifact.
-
-## Project structure
-
-```
-app/                 # App Router pages, layout, providers
-components/          # Canvas, tool panel, annotation list, export panel, uploader
-lib/
-  store/            # Zustand store (annotations, tools, history, persistence)
-  actions/          # Server Actions (image upload)
-  hooks/            # use-export
-  utils/            # COCO / YOLO / JSON serialization
-  types.ts          # Shared domain types
-public/uploads/     # Uploaded images (local dev)
-```
-
-## Roadmap
-
-Phase 1 (this repo) is the single-image annotation engine. Planned next:
-
-- **Backend & persistence** — Postgres + Prisma, projects/datasets/images, object storage
-- **AI-assisted labeling** — click-to-segment with Segment Anything
-- **Auth & multi-image projects** with a dataset browser
-- **Tests & CI** — unit (export/geometry), component, and E2E coverage with GitHub Actions
-- **Live deployment**
-
-## License
-
-MIT
+| `npm run type-check` | TypeScript, no emit |
+| `npm run db:push` | Sync Drizzle schema to Neon |
+| `npm run db:studio` | Browse the DB |

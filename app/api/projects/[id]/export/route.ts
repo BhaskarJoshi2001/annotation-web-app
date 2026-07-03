@@ -3,7 +3,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import JSZip from 'jszip';
 import { db } from '@/lib/db';
-import { images, annotations, labelClasses } from '@/lib/db/schema';
+import { images, annotations, labelClasses, exports as exportsTable } from '@/lib/db/schema';
 import { requireOwnedProject } from '@/lib/api/guards';
 
 const formatSchema = z.enum(['coco', 'yolo', 'json', 'csv']);
@@ -51,6 +51,17 @@ export async function GET(
 
   const slug = project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
+  const totalAnns = toExport.reduce((n, img) => n + (annsByImage.get(img.id)?.length ?? 0), 0);
+  const recordExport = (sizeBytes: number) =>
+    db.insert(exportsTable).values({
+      projectId,
+      format,
+      imageCount: toExport.length,
+      annotationCount: totalAnns,
+      sizeBytes,
+      status: 'done',
+    });
+
   // ── COCO ────────────────────────────────────────────────────────────────────
   if (format === 'coco') {
     const catMap = new Map(classes.map((c, i) => [c.id, i + 1]));
@@ -83,7 +94,9 @@ export async function GET(
 
     const coco = { images: cocoImages, annotations: cocoAnns, categories,
       info: { description: project.name, date_created: new Date().toISOString() } };
-    return new NextResponse(JSON.stringify(coco, null, 2), {
+    const body = JSON.stringify(coco, null, 2);
+    await recordExport(Buffer.byteLength(body));
+    return new NextResponse(body, {
       headers: {
         'Content-Type': 'application/json',
         'Content-Disposition': `attachment; filename="${slug}_coco.json"`,
@@ -115,6 +128,7 @@ export async function GET(
 
     const buf = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+    await recordExport(buf.byteLength);
     return new NextResponse(new Blob([ab], { type: 'application/zip' }), {
       headers: {
         'Content-Type': 'application/zip',
@@ -134,7 +148,9 @@ export async function GET(
       })),
       exportedAt: new Date().toISOString(),
     };
-    return new NextResponse(JSON.stringify(result, null, 2), {
+    const body = JSON.stringify(result, null, 2);
+    await recordExport(Buffer.byteLength(body));
+    return new NextResponse(body, {
       headers: {
         'Content-Type': 'application/json',
         'Content-Disposition': `attachment; filename="${slug}_annotations.json"`,
@@ -150,7 +166,9 @@ export async function GET(
       const classIds = [...new Set(anns.map((a) => (a.data as AnnData).classId))].join(';');
       return `"${img.filename}",${img.width ?? ''},${img.height ?? ''},${img.status},${anns.length},"${classIds}"`;
     });
-    return new NextResponse([header, ...rows].join('\n'), {
+    const body = [header, ...rows].join('\n');
+    await recordExport(Buffer.byteLength(body));
+    return new NextResponse(body, {
       headers: {
         'Content-Type': 'text/csv',
         'Content-Disposition': `attachment; filename="${slug}_manifest.csv"`,

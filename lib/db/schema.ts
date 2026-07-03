@@ -57,9 +57,19 @@ export const annotations = pgTable('annotations', {
 export const exports = pgTable('exports', {
   id: uuid('id').primaryKey().defaultRandom(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  format: text('format').notNull(), // 'coco' | 'yolo' | 'voc' | 'csv'
-  r2Key: text('r2_key'),
-  status: text('status').notNull().default('pending'), // 'pending' | 'processing' | 'done' | 'error'
+  format: text('format').notNull(), // 'coco' | 'yolo' | 'json' | 'csv'
+  r2Key: text('r2_key'), // null: exports stream directly; used if exports go async later
+  imageCount: integer('image_count').notNull().default(0),
+  annotationCount: integer('annotation_count').notNull().default(0),
+  sizeBytes: integer('size_bytes').notNull().default(0),
+  status: text('status').notNull().default('done'), // 'pending' | 'processing' | 'done' | 'error'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const waitlist = pgTable('waitlist', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  source: text('source'), // where the signup came from, e.g. 'upgrade-modal'
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
