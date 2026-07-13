@@ -28,6 +28,10 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# EC2 / docker deployment (server-only secrets and cert state)
+.env.production
+certbot/
+
 # vercel
 .vercel
 

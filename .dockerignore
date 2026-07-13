@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+npm-debug.log*
+README.md
+DEPLOYMENT.md
+DEPLOYMENT_EC2.md
+PROGRESS.md
+design-reference
+.claude
+tsconfig.tsbuildinfo
